@@ -1,4 +1,4 @@
-update=2/4/2018 3:06:12 PM
+update=2/10/2018 8:40:04 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -27,7 +27,7 @@ NetIExt=net
 version=1
 [eeschema]
 version=1
-LibDir=
+LibDir=w_conn_av.pretty
 [eeschema/libraries]
 LibName1=TMS9918-rescue
 LibName2=power
