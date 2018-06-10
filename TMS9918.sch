@@ -309,7 +309,7 @@ U 1 1 5A77A9F9
 P 9900 3300
 F 0 "U8" H 9600 4200 50  0000 C CNN
 F 1 "HM62256BLP-7" H 10300 2500 50  0000 C CNN
-F 2 "Housings_DIP:DIP-28_W15.24mm_Socket" H 9900 3300 50  0001 C CIN
+F 2 "Housings_DIP:DIP-28_W7.62mm_Socket" H 9900 3300 50  0001 C CIN
 F 3 "" H 9900 3300 50  0001 C CNN
 	1    9900 3300
 	1    0    0    -1  
@@ -929,6 +929,50 @@ Text Label 2000 7200 1    60   ~ 0
 A2
 Text Label 1900 7200 1    60   ~ 0
 A3
+Text Label 850  2100 1    60   ~ 0
+~IORQ+ADDR~
+Text Label 750  3300 3    60   ~ 0
+~ADDR~
+NoConn ~ 900  4300
+NoConn ~ 1000 4300
+NoConn ~ 1200 4300
+NoConn ~ 1300 4300
+NoConn ~ 1100 4300
+NoConn ~ 1500 4300
+NoConn ~ 1600 4300
+$Comp
+L C C11
+U 1 1 5A7DB855
+P 4700 6500
+F 0 "C11" H 4725 6600 50  0000 L CNN
+F 1 "0.1uf" H 4725 6400 50  0000 L CNN
+F 2 "Capacitors_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm" H 4738 6350 50  0001 C CNN
+F 3 "" H 4700 6500 50  0001 C CNN
+	1    4700 6500
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x14 J3
+U 1 1 5B0E0805
+P 10250 1600
+F 0 "J3" H 10250 2300 50  0000 C CNN
+F 1 "Conn_01x14" H 10250 800 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x14_Pitch2.54mm" H 10250 1600 50  0001 C CNN
+F 3 "" H 10250 1600 50  0001 C CNN
+	1    10250 1600
+	1    0    0    -1  
+$EndComp
+$Comp
+L VCC #PWR012
+U 1 1 5B0E4F37
+P 9650 2300
+F 0 "#PWR012" H 9650 2150 50  0001 C CNN
+F 1 "VCC" H 9650 2450 50  0000 C CNN
+F 2 "" H 9650 2300 50  0001 C CNN
+F 3 "" H 9650 2300 50  0001 C CNN
+	1    9650 2300
+	1    0    0    -1  
+$EndComp
 Wire Bus Line
 	550  900  2850 900 
 Wire Wire Line
@@ -1099,7 +1143,7 @@ Wire Bus Line
 Wire Bus Line
 	10950 900  8750 900 
 Wire Wire Line
-	9400 3950 9300 3950
+	9300 3950 9400 3950
 Wire Wire Line
 	8500 4600 9150 4600
 Wire Wire Line
@@ -1251,12 +1295,9 @@ Wire Wire Line
 Wire Wire Line
 	6850 1150 7100 1150
 Wire Wire Line
-	9300 3950 9300 3850
-Wire Wire Line
 	9150 4600 9150 3850
 Wire Wire Line
 	9150 3850 9400 3850
-Connection ~ 9300 3850
 Connection ~ 5250 2150
 Wire Wire Line
 	6650 5600 6650 2050
@@ -1415,9 +1456,7 @@ Wire Wire Line
 Wire Wire Line
 	1000 6950 1000 5500
 Wire Wire Line
-	1100 4300 1100 4250
-Wire Wire Line
-	1100 4250 750  4250
+	750  4250 1400 4250
 Wire Wire Line
 	750  4250 750  3300
 Wire Wire Line
@@ -1426,28 +1465,39 @@ Wire Wire Line
 	3200 4150 950  4150
 Wire Wire Line
 	950  4150 950  3300
-Text Label 850  2100 1    60   ~ 0
-~IORQ+ADDR~
-Text Label 750  3300 3    60   ~ 0
-~ADDR~
-NoConn ~ 900  4300
-NoConn ~ 1000 4300
-NoConn ~ 1200 4300
-NoConn ~ 1300 4300
-NoConn ~ 1400 4300
-NoConn ~ 1500 4300
-NoConn ~ 1600 4300
-$Comp
-L C C11
-U 1 1 5A7DB855
-P 4700 6500
-F 0 "C11" H 4725 6600 50  0000 L CNN
-F 1 "0.1uf" H 4725 6400 50  0000 L CNN
-F 2 "Capacitors_THT:C_Disc_D3.0mm_W1.6mm_P2.50mm" H 4738 6350 50  0001 C CNN
-F 3 "" H 4700 6500 50  0001 C CNN
-	1    4700 6500
-	1    0    0    -1  
-$EndComp
 Connection ~ 4950 6350
 Connection ~ 4950 6650
+Wire Wire Line
+	9300 3950 9300 3850
+Connection ~ 9300 3850
+Wire Wire Line
+	9650 2300 10050 2300
+Wire Wire Line
+	1400 4250 1400 4300
+Text Label 10050 1000 2    60   ~ 0
+VD3
+Text Label 10050 1100 2    60   ~ 0
+VD4
+Text Label 10050 1200 2    60   ~ 0
+VD5
+Text Label 10050 1300 2    60   ~ 0
+VD6
+Text Label 10050 1400 2    60   ~ 0
+VD7
+Text Label 10050 1500 2    60   ~ 0
+~CAS~
+Text Label 10050 1600 2    60   ~ 0
+VA10
+Text Label 10050 1700 2    60   ~ 0
+~R~W
+Text Label 10050 1800 2    60   ~ 0
+VA11
+Text Label 10050 1900 2    60   ~ 0
+VA9
+Text Label 10050 2000 2    60   ~ 0
+VA8
+Text Label 10050 2100 2    60   ~ 0
+VA13
+Text Label 10050 2200 2    60   ~ 0
+R~W~
 $EndSCHEMATC
