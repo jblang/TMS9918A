@@ -309,7 +309,7 @@ U 1 1 5A77A9F9
 P 9900 3300
 F 0 "U8" H 9600 4200 50  0000 C CNN
 F 1 "HM62256BLP-7" H 10300 2500 50  0000 C CNN
-F 2 "Housings_DIP:DIP-28_W7.62mm_Socket" H 9900 3300 50  0001 C CIN
+F 2 "Housings_DIP:DIP-28_W15.24mm" H 9900 3300 50  0001 C CIN
 F 3 "" H 9900 3300 50  0001 C CNN
 	1    9900 3300
 	1    0    0    -1  
@@ -567,13 +567,13 @@ Entry Wire Line
 $Comp
 L 74LS138-RESCUE-TMS9918 U2
 U 1 1 5A78B735
-P 1250 4900
-F 0 "U2" H 1350 5400 50  0000 C CNN
-F 1 "74LS138" H 1400 4351 50  0000 C CNN
-F 2 "Housings_DIP:DIP-16_W7.62mm_Socket" H 1250 4900 50  0001 C CNN
-F 3 "" H 1250 4900 50  0001 C CNN
-	1    1250 4900
-	0    -1   -1   0   
+P 1300 4950
+F 0 "U2" H 1400 5450 50  0000 C CNN
+F 1 "74LS138" H 1450 4401 50  0000 C CNN
+F 2 "Housings_DIP:DIP-16_W7.62mm_Socket" H 1300 4950 50  0001 C CNN
+F 3 "" H 1300 4950 50  0001 C CNN
+	1    1300 4950
+	1    0    0    -1  
 $EndComp
 Text Label 10400 2550 0    60   ~ 0
 VD0
@@ -876,17 +876,6 @@ F 3 "" H 5450 7250 50  0001 C CNN
 $EndComp
 $Comp
 L 74LS32 U1
-U 4 1 5A7CFBC7
-P 1950 6100
-F 0 "U1" H 1950 6150 50  0000 C CNN
-F 1 "74LS32" H 1950 6050 50  0000 C CNN
-F 2 "Housings_DIP:DIP-14_W7.62mm_Socket" H 1950 6100 50  0001 C CNN
-F 3 "" H 1950 6100 50  0001 C CNN
-	4    1950 6100
-	0    -1   -1   0   
-$EndComp
-$Comp
-L 74LS32 U1
 U 1 1 5A7CFD14
 P 850 2700
 F 0 "U1" H 850 2750 50  0000 C CNN
@@ -933,13 +922,6 @@ Text Label 850  2100 1    60   ~ 0
 ~IORQ+ADDR~
 Text Label 750  3300 3    60   ~ 0
 ~ADDR~
-NoConn ~ 900  4300
-NoConn ~ 1000 4300
-NoConn ~ 1200 4300
-NoConn ~ 1300 4300
-NoConn ~ 1100 4300
-NoConn ~ 1500 4300
-NoConn ~ 1600 4300
 $Comp
 L C C11
 U 1 1 5A7DB855
@@ -1311,17 +1293,13 @@ Wire Wire Line
 Wire Wire Line
 	3050 2450 3050 2950
 Wire Wire Line
-	3050 2950 2300 2950
-Wire Wire Line
-	2300 2950 2300 6400
+	3050 2950 2100 2950
 Wire Wire Line
 	3200 2350 2950 2350
 Wire Wire Line
 	2950 2350 2950 2850
 Wire Wire Line
-	2950 2850 2350 2850
-Wire Wire Line
-	2350 2850 2350 6350
+	2950 2850 2150 2850
 Wire Wire Line
 	3300 7200 3300 7100
 Wire Wire Line
@@ -1342,10 +1320,6 @@ Wire Bus Line
 	3400 7000 4750 7000
 Wire Bus Line
 	550  900  550  7700
-Wire Wire Line
-	2200 2750 2200 7200
-Wire Wire Line
-	2200 2750 2850 2750
 Wire Wire Line
 	2850 2750 2850 1950
 Wire Wire Line
@@ -1381,15 +1355,7 @@ Wire Wire Line
 Wire Wire Line
 	2300 6750 2300 7200
 Wire Wire Line
-	2300 6400 2600 6400
-Wire Wire Line
-	2600 6400 2600 7200
-Wire Wire Line
-	2350 6350 2800 6350
-Wire Wire Line
-	2800 6350 2800 7200
-Wire Wire Line
-	1600 5500 1950 5500
+	2800 4250 2800 7200
 Wire Wire Line
 	2050 6700 2100 6700
 Wire Wire Line
@@ -1398,8 +1364,6 @@ Wire Wire Line
 	2000 7200 2000 6700
 Wire Wire Line
 	2000 6700 1850 6700
-Wire Wire Line
-	1900 7200 1900 6750
 Wire Wire Line
 	2550 1700 2550 2150
 Wire Wire Line
@@ -1428,37 +1392,9 @@ Wire Wire Line
 Wire Wire Line
 	1250 1300 1350 1300
 Wire Wire Line
-	1500 7200 1500 7000
+	1850 4400 2500 4400
 Wire Wire Line
-	1500 7000 900  7000
-Wire Wire Line
-	900  7000 900  5500
-Wire Wire Line
-	1900 6750 1400 6750
-Wire Wire Line
-	1400 6750 1400 5500
-Wire Wire Line
-	1800 7200 1800 6800
-Wire Wire Line
-	1800 6800 1100 6800
-Wire Wire Line
-	1100 6800 1100 5500
-Wire Wire Line
-	1700 7200 1700 6850
-Wire Wire Line
-	1700 6850 1500 6850
-Wire Wire Line
-	1500 6850 1500 5500
-Wire Wire Line
-	1600 7200 1600 6950
-Wire Wire Line
-	1600 6950 1000 6950
-Wire Wire Line
-	1000 6950 1000 5500
-Wire Wire Line
-	750  4250 1400 4250
-Wire Wire Line
-	750  4250 750  3300
+	1850 4400 1850 3450
 Wire Wire Line
 	3200 7200 3200 4150
 Wire Wire Line
@@ -1472,8 +1408,6 @@ Wire Wire Line
 Connection ~ 9300 3850
 Wire Wire Line
 	9650 2300 10050 2300
-Wire Wire Line
-	1400 4250 1400 4300
 Text Label 10050 1000 2    60   ~ 0
 VD3
 Text Label 10050 1100 2    60   ~ 0
@@ -1500,4 +1434,107 @@ Text Label 10050 2100 2    60   ~ 0
 VA13
 Text Label 10050 2200 2    60   ~ 0
 R~W~
+$Comp
+L Conn_02x08_Odd_Even J4
+U 1 1 5B1E36E0
+P 2150 4900
+F 0 "J4" H 2200 5300 50  0000 C CNN
+F 1 "Conn_02x08_Odd_Even" H 2200 4400 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_2x08_Pitch2.54mm" H 2150 4900 50  0001 C CNN
+F 3 "" H 2150 4900 50  0001 C CNN
+	1    2150 4900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1900 4600 1950 4600
+Wire Wire Line
+	1900 4700 1950 4700
+Wire Wire Line
+	1900 4800 1950 4800
+Wire Wire Line
+	1900 4900 1950 4900
+Wire Wire Line
+	1900 5000 1950 5000
+Wire Wire Line
+	1900 5100 1950 5100
+Wire Wire Line
+	1900 5200 1950 5200
+Wire Wire Line
+	1900 5300 1950 5300
+Wire Wire Line
+	2500 5300 2450 5300
+Wire Wire Line
+	2500 4400 2500 5300
+Wire Wire Line
+	2500 4600 2450 4600
+Wire Wire Line
+	2500 4700 2450 4700
+Connection ~ 2500 4700
+Wire Wire Line
+	2500 4800 2450 4800
+Connection ~ 2500 4800
+Wire Wire Line
+	2500 4900 2450 4900
+Connection ~ 2500 4900
+Wire Wire Line
+	2450 5000 2500 5000
+Connection ~ 2500 5000
+Wire Wire Line
+	2500 5100 2450 5100
+Connection ~ 2500 5100
+Wire Wire Line
+	2450 5200 2500 5200
+Connection ~ 2500 5200
+Text Label 700  4600 2    60   ~ 0
+A7
+Text Label 700  4700 2    60   ~ 0
+A6
+Text Label 700  4800 2    60   ~ 0
+A4
+Text Label 700  5100 2    60   ~ 0
+A3
+Text Label 700  5200 2    60   ~ 0
+A5
+Text Label 700  5300 2    60   ~ 0
+A1+A2
+$Comp
+L 74LS32 U1
+U 4 1 5A7CFBC7
+P 1950 6100
+F 0 "U1" H 1950 6150 50  0000 C CNN
+F 1 "74LS32" H 1950 6050 50  0000 C CNN
+F 2 "Housings_DIP:DIP-14_W7.62mm_Socket" H 1950 6100 50  0001 C CNN
+F 3 "" H 1950 6100 50  0001 C CNN
+	4    1950 6100
+	0    -1   -1   0   
+$EndComp
+Text Label 1950 5500 1    60   ~ 0
+A1+A2
+Connection ~ 2500 4600
+Wire Wire Line
+	2800 4250 2150 4250
+Wire Wire Line
+	2150 4250 2150 2850
+Wire Wire Line
+	2600 7200 2600 4300
+Wire Wire Line
+	2600 4300 2100 4300
+Wire Wire Line
+	2100 4300 2100 2950
+Wire Wire Line
+	2200 7200 2200 6700
+Wire Wire Line
+	2200 6700 2550 6700
+Wire Wire Line
+	2550 6700 2550 4350
+Wire Wire Line
+	2550 4350 2050 4350
+Wire Wire Line
+	2050 4350 2050 2750
+Wire Wire Line
+	2050 2750 2850 2750
+Wire Wire Line
+	1850 3450 750  3450
+Wire Wire Line
+	750  3450 750  3300
 $EndSCHEMATC
