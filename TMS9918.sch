@@ -1,5 +1,4 @@
 EESchema Schematic File Version 2
-LIBS:TMS9918-rescue
 LIBS:power
 LIBS:device
 LIBS:switches
@@ -564,17 +563,6 @@ Entry Wire Line
 	2850 1550 2950 1650
 Entry Wire Line
 	2850 1650 2950 1750
-$Comp
-L 74LS138-RESCUE-TMS9918 U2
-U 1 1 5A78B735
-P 1300 4950
-F 0 "U2" H 1400 5450 50  0000 C CNN
-F 1 "74LS138" H 1450 4401 50  0000 C CNN
-F 2 "Housings_DIP:DIP-16_W7.62mm_Socket" H 1300 4950 50  0001 C CNN
-F 3 "" H 1300 4950 50  0001 C CNN
-	1    1300 4950
-	1    0    0    -1  
-$EndComp
 Text Label 10400 2550 0    60   ~ 0
 VD0
 Text Label 10400 2650 0    60   ~ 0
@@ -1485,11 +1473,11 @@ Connection ~ 2500 5100
 Wire Wire Line
 	2450 5200 2500 5200
 Connection ~ 2500 5200
-Text Label 700  4600 2    60   ~ 0
+Text Label 700  4800 2    60   ~ 0
 A7
 Text Label 700  4700 2    60   ~ 0
 A6
-Text Label 700  4800 2    60   ~ 0
+Text Label 700  4600 2    60   ~ 0
 A4
 Text Label 700  5100 2    60   ~ 0
 A3
@@ -1537,4 +1525,15 @@ Wire Wire Line
 	1850 3450 750  3450
 Wire Wire Line
 	750  3450 750  3300
+$Comp
+L 74LS138 U2
+U 1 1 5B25AE81
+P 1300 4950
+F 0 "U2" H 1400 5450 50  0000 C CNN
+F 1 "74LS138" H 1450 4401 50  0000 C CNN
+F 2 "Housings_DIP:DIP-16_W7.62mm_Socket" H 1300 4950 50  0001 C CNN
+F 3 "" H 1300 4950 50  0001 C CNN
+	1    1300 4950
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC

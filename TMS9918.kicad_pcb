@@ -3,7 +3,7 @@
   (general
     (links 176)
     (no_connects 0)
-    (area 131.469001 46.9805 262.810501 164.053501)
+    (area 153.823599 103.429999 253.075001 153.440201)
     (thickness 1.6)
     (drawings 26)
     (tracks 848)
@@ -539,7 +539,7 @@
     (at 208.026 117.856 90)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils), Socket")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil Socket")
-    (path /5A78B735)
+    (path /5B25AE81)
     (fp_text reference U2 (at 3.81 8.89 90) (layer F.SilkS)
       (effects (font (size 1 1) (thickness 0.15)))
     )
