@@ -15,7 +15,7 @@ The board has been built and tested using the gerber files generated from this p
 - TMS9918A chip. Available on ebay. The TMS9918 without the A is missing a graphics mode.  
 - KLPX-0848A-2-Y RCA connector. Other models may not fit.  
 - FBA04HA600VB-00 ferrite bead. I got a message from Mouser that it is end of life now.  Other ferrite beads should work fine. The closer in size to the footprint of a 1/4W resistor, the better it will fit. 
-- AS6C62256-55PCN or compatible 32KB RAM.  I have put two footprints so either a wide or skinny DIP-28 will work as long as the pin-out is the same. I have also tested the circuit with a UM61M256K-15 32K RAM chip salvaged off of an old Pentium motherboard (where it was used for cache).
+- AS6C62256-55PCN or compatible 32KB SRAM.  I have put two footprints so either a wide or narrow DIP-28 will work as long as the pin-out is the same. I have also tested the circuit with a UM61M256K-15 32K SRAM salvaged off of an old Pentium motherboard where it was used for cache.
 - LFXTAL029962REEL 10.73866MHz crystal with 16pf caps. 
 - 1 74HCT32 Quad OR gate
 - 1 74HCT04 Hex Inverter
