@@ -1,6 +1,6 @@
 # rc9918
 
-This is a TMS9918A-based video card I am building for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, original Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis. It also influenced the architecture of the PPU in the Nintendo Entertainment System. This board can be configured to use the same ports as the MSX, so it's possible to run some MSX software on it unmodified.
+This is a TMS9918A-based video card for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, original Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis. It also influenced the architecture of the PPU in the Nintendo Entertainment System. This board can be configured to use the same ports as the MSX, so it's possible to run some MSX software on it unmodified.
 
 This is based on a [circuit](https://retrobrewcomputers.org/n8vem-pbwiki-archive/0/35845334/48860720/33053543/SRAM%20Replacement%20for%20TMS99x8%20VRAM.pdf) described by Tom LeMense for interfacing the TMS9918A with SRAM.  I took his schematics, added port address decoding and laid out the circuit on an RC2014 module.
 
