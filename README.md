@@ -12,6 +12,7 @@ The board has been built and tested using the gerber files generated from this p
 
 ## Bill of Materials 
 
+- rc9918 PCB ([OSH Park](https://oshpark.com/projects/KfwMvnwH) | [Gerbers](https://cdn.hackaday.io/files/1590576805094688/tms9918a_gerber.zip))
 - TMS9918A chip. Available on ebay. The TMS9918 without the A is missing a graphics mode.  
 - KLPX-0848A-2-Y RCA connector. Other models may not fit.  
 - FBA04HA600VB-00 ferrite bead. I got a message from Mouser that it is end of life now.  Other ferrite beads should work fine. The closer in size to the footprint of a 1/4W resistor, the better it will fit. 
