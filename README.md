@@ -6,8 +6,6 @@ This board is based on a [circuit](https://retrobrewcomputers.org/n8vem-pbwiki-a
 
 This board can be configured to use the same ports as the MSX, so it's possible to run some MSX software on it unmodified. I have successfully gotten the Bold demo to run. The graphics from other programs should work as well, but other parts of the MSX, such as I/O may need additional hardware to work.
 
-I have included an example Z80 assembly program, [tmsmandel.asm](tmsmandel.asm), which generates a Mandelbrot on the TMS9918. I am also adding support for the TMS9918 to my [z80ctrl](https://github.com/jblang/z80ctrl) project.
-
 The board has been built and tested using the gerber files generated from this project. The gerber files are available for direct download below, and the project has also been shared on OSH Park.
 
 ## Bill of Materials 
@@ -49,3 +47,4 @@ The jumper above the 74HCT138 selects the ports that the TMS9918A is mapped to. 
 - [More TMS9918 Documents](https://github.com/cbmeeks/TMS9918)
 - [Discussion Thread](https://groups.google.com/d/topic/rc2014-z80/0m0kbzIJ3tw/discussion)
 - [Hackaday Page](https://hackaday.io/project/159057-rc9918)
+- [Mandelbrot Example Assembly Program](tmsmandel.asm)
