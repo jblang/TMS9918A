@@ -1,14 +1,14 @@
 # rc9918
 
-This is a TMS9918A-based video card for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, original Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis. It also influenced the architecture of the PPU in the Nintendo Entertainment System. This board can be configured to use the same ports as the MSX, so it's possible to run some MSX software on it unmodified.
+This is a TMS9918A-based video card for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, original Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis. The chip's designer claims it also influenced the architecture of the PPU in the Nintendo Entertainment System. 
 
-This is based on a [circuit](https://retrobrewcomputers.org/n8vem-pbwiki-archive/0/35845334/48860720/33053543/SRAM%20Replacement%20for%20TMS99x8%20VRAM.pdf) described by Tom LeMense for interfacing the TMS9918A with SRAM.  I took his schematics, added port address decoding and laid out the circuit on an RC2014 module.
+This board is based on a [circuit](https://retrobrewcomputers.org/n8vem-pbwiki-archive/0/35845334/48860720/33053543/SRAM%20Replacement%20for%20TMS99x8%20VRAM.pdf) described by Tom LeMense for interfacing the TMS9918A with SRAM.  I started with his schematics, added port address decoding and laid out the circuit on an RC2014 module.
 
-The TMS9918 data and control ports map to 98 and 99, respectively. This allows some unmodified MSX programs to run on the RC2014. I have successfully gotten the Bold demo to run. The graphics from other programs should work as well, but other parts of the MSX, such as I/O may need additional hardware to work.
+This board can be configured to use the same ports as the MSX, so it's possible to run some MSX software on it unmodified. I have successfully gotten the Bold demo to run. The graphics from other programs should work as well, but other parts of the MSX, such as I/O may need additional hardware to work.
 
 I have included an example Z80 assembly program, [tmsmandel.asm](tmsmandel.asm), which generates a Mandelbrot on the TMS9918. I am also adding support for the TMS9918 to my [z80ctrl](https://github.com/jblang/z80ctrl) project.
 
-The board has been built and tested using the gerber files generated from this project. The gerber files are available for direct download on the Hackaday page linked below.
+The board has been built and tested using the gerber files generated from this project. The gerber files are available for direct download below, and the project has also been shared on OSH Park.
 
 ## Bill of Materials 
 
