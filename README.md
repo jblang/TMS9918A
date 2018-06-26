@@ -25,7 +25,7 @@ The board has been built and tested using the gerber files generated from this p
 - 40 pin right angle header
 - 2x8 pin straight header and 1 jumper block
 
-Aside from the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
+Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
 ## Address Configuration Jumper
 
