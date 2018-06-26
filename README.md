@@ -48,3 +48,4 @@ The jumper above the 74HCT138 selects the ports that the TMS9918A is mapped to. 
 - [Discussion Thread](https://groups.google.com/d/topic/rc2014-z80/0m0kbzIJ3tw/discussion)
 - [Hackaday Page](https://hackaday.io/project/159057-rc9918)
 - [Mandelbrot Example Assembly Program](tmsmandel.asm)
+- [z80ctrl](https://github.com/jblang/z80ctrl): my other RC2014 project with support for this board.
