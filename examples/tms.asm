@@ -122,3 +122,31 @@ tmsmulticolor:
         ld      hl, tmsmcreg            ; switch to multicolor mode
         call    tmsconfig
         ret
+
+; register values for bitmapped graphics
+tmsbitmapreg:
+        defb $02                        ; bitmap mode, no external video
+        defb $c0                        ; 16KB ram; enable display
+        defb $0e                        ; name table at 3800H
+        defb $ff                        ; color table at 2000H
+        defb $03                        ; pattern table at 0000H
+        defb $76                        ; sprite attribute table at 3B00H
+        defb $03                        ; sprite pattern table at 1800H
+        defb $01                        ; black background
+
+; initialize TMS for bitmapped graphics
+tmsbitmap:
+        call    tmsclear
+        ld      de, $3800               ; initialize nametable with 3 sets
+        call    tmswriteaddr            ; of 256 bytes ranging from 00-FF
+        ld      b, 3
+        ld      a, 0
+.nameloop:
+        out     (tmsram), a
+        nop
+        inc     a
+        jr      nz, .nameloop
+        djnz    .nameloop
+        ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
+        call    tmsconfig
+        ret

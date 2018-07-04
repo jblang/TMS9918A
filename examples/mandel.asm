@@ -7,13 +7,11 @@
 ;
 ; Assemble with sjasm
 
-tmsreg          equ     99h                     ; TMS9918 register port
-tmsram          equ     98h                     ; TMS9918 RAM port
-
-
                 org     100h
                 ld      sp, 0ffffh              ; initailize stack
                 jp      mandelbrot
+
+                include "tms.asm"               ; TMS subroutines
                 
 ; mandelbrot constants
 scale           equ     256                     ; Do NOT change this - the
@@ -43,8 +41,12 @@ z_1_square_low  defw    0
 
 ; mandelbrot entry point
 mandelbrot
-                call    tms_bitmapinit
-                ld      hl, y_start           ; y = y_start
+                call    tmsbitmap
+                ld      hl, 0                   ; reinitialize counters
+                ld      (xypos), hl
+                ld      a, 0
+                ld      (bitindex), a
+                ld      hl, y_start             ; y = y_start
                 ld      (y), hl
 
 ; for (y = <initial_value> ; y <= y_end; y += y_step)
@@ -156,7 +158,7 @@ iteration_dec   pop     bc                      ; Get iteration counter
 iteration_end
 ;      printf("%c", display[iteration % 7]);
                 inc     b                       ; increment iteration count to get color
-                call    tms_pixel               ; plot it
+                call    drawpixel               ; plot it
 
                 ld      de, x_step              ; x += x_step
                 ld      hl, (x)
@@ -235,111 +237,6 @@ mul_16_exit     dec     a
                 ld      d, a
                 ret
 
-; delay at least 8ms to allow TMS to process data
-tms_delay       nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                nop
-                ret
-
-; set the next address of video memory to write
-;       HL = address
-tms_setwrite    ld      a, l
-                out     (tmsreg), a
-                call    tms_delay
-                ld      a, h
-                and     3fh
-                or      40h
-                out     (tmsreg), a
-                call    tms_delay
-                ret
-
-; set the next address of video memory to read
-;       HL = address
-tms_setread     ld      a, l
-                out     (tmsreg), a
-                call    tms_delay
-                ld      a, h
-                out     (tmsreg), a
-                call    tms_delay
-                ret
-
-; load confguration registers from table
-;       HL = table address
-tms_configure   ld      b, 8
-tms_configure2  ld      a, (hl)
-                out     (tmsreg), a
-                call    tms_delay
-                ld      a, 8
-                sub     b
-                or      80h
-                out     (tmsreg), a
-                call    tms_delay
-                inc     hl
-                djnz    tms_configure2
-                ret
-
-; fill video memory
-;       HL = start address
-;       BC = byte count
-;       D = fill value
-tms_fill        call    tms_setwrite
-tms_fill2       ld      a, d
-                out     (tmsram), a
-                call    tms_delay
-                dec     bc
-                ld      a, b
-                or      c
-                jr      nz, tms_fill2
-                ret
-
-; clear all 16KB of video memory
-tms_clear       ld      hl, 0
-                ld      bc, 4000h
-                ld      d, 0
-                call    tms_fill
-                ret
-
-; register values for bitmapped graphics
-tms_bitmapcfg   defb 2                          ; bitmap mode, no external video
-                defb 0c0h                       ; 16KB ram; enable display
-                defb 0eh                        ; name table at 3800H
-                defb 0ffh                       ; color table at 2000H
-                defb 3                          ; pattern table at 0000H
-                defb 76h                        ; sprite attribute table at 3B00H
-                defb 3                          ; sprite pattern table at 1800H
-                defb 1                          ; black background
-
-; initialize TMS for bitmapped graphics
-tms_bitmapinit
-                ld      hl, 0                   ; reinitialize counters
-                ld      (xypos), hl
-                ld      a, 0
-                ld      (bitindex), a
-                ld      hl, tms_bitmapcfg       ; configure registers for bitmapped graphics
-                call    tms_configure
-                call    tms_clear
-                ld      hl, 3800h               ; initialize nametable with 3 sets
-                call    tms_setwrite            ; of 256 bytes ranging from 00-FF
-                ld      b, 3
-                ld      a, 0
-nameloop        out     (tmsram), a
-                call    tms_delay
-                inc     a
-                jr      nz, nameloop
-                djnz    nameloop
-                ret
-
 ; working area for 8 pixels at a time
 primary         defb 0                          ; primary color
 secondary       defb 0                          ; secondary color
@@ -349,7 +246,7 @@ xypos           defw 0                          ; current x, y position on the s
 
 ; plot a pixel to TMS9918 screen
 ;       B = color of pixel
-tms_pixel       
+drawpixel       
                 ld      a, (bitindex)           ; check whether this is the first bit of a byte
                 or      a
                 ld      a, b                    ; load the current color in a
@@ -398,14 +295,17 @@ setbit
                 ld      e, a
                 add     hl, de
 
-                call    tms_setwrite            ; set write address within pattern table
+                ex      de, hl
+                call    tmswriteaddr            ; set write address within pattern table
                 ld      a, (pattern)            ; send the pattern to the TMS
                 out     (tmsram), a
-                call    tms_delay
+                call    tmswait
 
                 ld      bc, 2000h               ; add the color table base address
+                ex      de, hl
                 add     hl, bc
-                call    tms_setwrite            ; set write address within color table
+                ex      de, hl
+                call    tmswriteaddr            ; set write address within color table
                 ld      a, (primary)            ; load primary color into upper 4 bits
                 add     a, a
                 add     a, a
@@ -414,10 +314,9 @@ setbit
                 ld      hl, secondary           ; load secondary color into lower 4 bits
                 or      a, (hl)
                 out     (tmsram), a             ; send to TMS
-                call    tms_delay
 
                 ld      hl, (xypos)             ; increase next x/y position by 8 pixels
-                ld      e, 8
+                ld      de, 8
                 add     hl, de
                 ld      (xypos), hl
                 ret
