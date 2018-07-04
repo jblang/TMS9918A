@@ -15,7 +15,15 @@ music:
                 incbin  "music.bin"     ; music data
 
 animation:
-                incbin  "nyan.bin"      ; animation data
+                incbin  "nyan.bin"      ; The Classic
+                ;incbin "nyands.bin"    ; Skrillex?
+                ;incbin "nyanfi.bin"    ; Finland
+                ;incbin "nyangb.bin"    ; Gameboy
+                ;incbin "nyanlb.bin"    ; France
+                ;incbin "nyann1.bin"    ; France
+                ;incbin "nyann2.bin"    ; Hmm... France, and cheese, ...and bananas?
+                ;incbin "nyanus.bin"    ; USA
+                ;incbin "nyanxx.bin"    ; Party Hat
 
                 include "arkos.asm"     ; Arkos player
                 include "../tms.asm"    ; TMS graphics routines
