@@ -12,21 +12,22 @@ framecount:     equ 12                  ; number of frames in animation
         jp      start
 
 music:
-                incbin  "music.bin"     ; music data
+                incbin  "nyan/music.bin"     ; music data
 
+; Change included binary for different cat
 animation:
-                incbin  "nyan.bin"      ; The Classic
-                ;incbin "nyands.bin"    ; Skrillex?
-                ;incbin "nyanfi.bin"    ; Finland
-                ;incbin "nyangb.bin"    ; Gameboy
-                ;incbin "nyanlb.bin"    ; France
-                ;incbin "nyann1.bin"    ; France
-                ;incbin "nyann2.bin"    ; Hmm... France, and cheese, ...and bananas?
-                ;incbin "nyanus.bin"    ; USA
-                ;incbin "nyanxx.bin"    ; Party Hat
+                incbin  "nyan/nyan.bin"      ; The Classic
+                ;incbin "nyan/nyands.bin"    ; Skrillex?
+                ;incbin "nyan/nyanfi.bin"    ; Finland
+                ;incbin "nyan/nyangb.bin"    ; Gameboy
+                ;incbin "nyan/nyanlb.bin"    ; France
+                ;incbin "nyan/nyann1.bin"    ; France
+                ;incbin "nyan/nyann2.bin"    ; Hmm... France, and cheese, ...and bananas?
+                ;incbin "nyan/nyanus.bin"    ; USA
+                ;incbin "nyan/nyanxx.bin"    ; Party Hat
 
                 include "arkos.asm"     ; Arkos player
-                include "../tms.asm"    ; TMS graphics routines
+                include "tms.asm"       ; TMS graphics routines
 
 start:
 	ld      sp, $FFFF
