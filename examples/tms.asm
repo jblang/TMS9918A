@@ -39,7 +39,7 @@ tmsconfig:
 
 ; register values for blanked screen with 16KB RAM enabled
 tmsblankreg:
-        defb $00, $80, $00, $00, $00, $00, $00, $00
+        defb    $00, $80, $00, $00, $00, $00, $00, $00
 
 ; blank the screen and clear all 16KB of video memory
 tmsclear:
@@ -77,7 +77,7 @@ tmswriteaddr:
 ; copy bytes from ram to vram
 ;       HL = ram source address
 ;       DE = vram destination address
-;       BC = byte count
+;       BC = byte count (0 for null terminated)
 tmswrite:
         call    tmswriteaddr            ; set the starting address
 .copyloop:
@@ -91,9 +91,31 @@ tmswrite:
         jr      nz, .copyloop
         ret
 
+; copy a null-terminated string to VRAM
+;       HL = ram source address
+;       DE = vram destination address
+tmsstrout:
+        call    tmswriteaddr
+.strloop:
+        ld      a, (hl)                 ; get the current byte from ram
+        cp      0                       ; return when NULL is encountered
+        ret     z
+        out     (tmsram), a             ; send it to vram
+        call    tmswait                 ; waste time to let TMS process
+        inc     hl                      ; next byte
+        jr      .strloop
+        ret
+
 ; register values for multicolor mode
 tmsmcreg:
-	defb $00, $E8, $02, $00, $00, $36, $07, $04
+	db      %00000000               ; external video disabled, multicolor mode
+        db      %11101000               ; 16KB, display enabled, interrupts enabled
+        db      $02                     ; name table at $8000
+        db      $00                     ; color table not used
+        db      $00                     ; pattern table at $0000
+        db      $76                     ; sprite attribute table at $3B00
+        db      $03                     ; sprite pattern table at $1800
+        db      $04                     ; blue background
 
 ; initialize tms for multicolor mode 
 tmsmulticolor:
@@ -125,14 +147,14 @@ tmsmulticolor:
 
 ; register values for bitmapped graphics
 tmsbitmapreg:
-        defb $02                        ; bitmap mode, no external video
-        defb $c0                        ; 16KB ram; enable display
-        defb $0e                        ; name table at 3800H
-        defb $ff                        ; color table at 2000H
-        defb $03                        ; pattern table at 0000H
-        defb $76                        ; sprite attribute table at 3B00H
-        defb $03                        ; sprite pattern table at 1800H
-        defb $01                        ; black background
+        db      %00000010               ; bitmap mode, no external video
+        db      %11000000               ; 16KB ram; enable display
+        db      $0e                     ; name table at 3800H
+        db      $ff                     ; color table at 2000H
+        db      $03                     ; pattern table at 0000H
+        db      $76                     ; sprite attribute table at 3B00H
+        db      $03                     ; sprite pattern table at 1800H
+        db      $01                     ; black background
 
 ; initialize TMS for bitmapped graphics
 tmsbitmap:
@@ -148,5 +170,28 @@ tmsbitmap:
         jr      nz, .nameloop
         djnz    .nameloop
         ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
+        call    tmsconfig
+        ret
+
+tmstextreg:
+        db      %00000000               ; text mode, no external video
+        db      %11010000               ; 16K, Enable Display, Disable Interrupt
+        db      $00                     ; name table at $0000
+        db      $00                     ; color table not used
+        db      $01                     ; pattern table at $0800
+        db      $00                     ; sprite attribute table not used
+        db      $00                     ; sprite pattern table not used
+        db      $F1                     ; white text on black background
+
+; initialize TMS for text mode
+;       HL = address of font to load
+tmstextmode:
+        push    hl                      ; save address of font
+        call    tmsclear
+        pop     hl                      ; load font into pattern table
+        ld      de, $0800
+        ld      bc, $0800
+        call    tmswrite
+        ld hl,  tmstextreg
         call    tmsconfig
         ret

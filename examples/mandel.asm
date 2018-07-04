@@ -42,9 +42,9 @@ z_1_square_low  defw    0
 ; mandelbrot entry point
 mandelbrot
                 call    tmsbitmap
-                ld      hl, 0                   ; reinitialize counters
-                ld      (xypos), hl
-                ld      a, 0
+                ld      a, 0                    ; clear pixel counters
+                ld      (xypos), a
+                ld      (xypos+1), a
                 ld      (bitindex), a
                 ld      hl, y_start             ; y = y_start
                 ld      (y), hl
