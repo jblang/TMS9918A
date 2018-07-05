@@ -1,49 +1,149 @@
- ; TMS9918A graphics subroutines
- ; Copyright 2018 J.B. Langston
- ;
- ; Permission is hereby granted, free of charge, to any person obtaining a 
- ; copy of this software and associated documentation files (the "Software"), 
- ; to deal in the Software without restriction, including without limitation 
- ; the rights to use, copy, modify, merge, publish, distribute, sublicense, 
- ; and/or sell copies of the Software, and to permit persons to whom the 
- ; Software is furnished to do so, subject to the following conditions:
- ; 
- ; The above copyright notice and this permission notice shall be included in
- ; all copies or substantial portions of the Software.
- ; 
- ; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- ; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- ; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- ; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
- ; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
- ; DEALINGS IN THE SOFTWARE.
+; TMS9918A graphics subroutines
+; Copyright 2018 J.B. Langston
+;
+; Permission is hereby granted, free of charge, to any person obtaining a 
+; copy of this software and associated documentation files (the "Software"), 
+; to deal in the Software without restriction, including without limitation 
+; the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+; and/or sell copies of the Software, and to permit persons to whom the 
+; Software is furnished to do so, subject to the following conditions:
+; 
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+; 
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+; DEALINGS IN THE SOFTWARE.
 
 tmsram:         equ $98                 ; TMS9918A VRAM port
 tmsreg:         equ $99                 ; TMS9918A register port
 
-; configure tms with specified register table
+tmswritebit:    equ $40                 ; bit to indicate memory write
+tmsregbit:      equ $80                 ; bit to indicate register write
+
+tmsctrl0:       equ 0                   ; control bits
+tmsmode3:       equ 1                   ;       mode bit 3
+tmsextvid       equ 0                   ;       external video
+
+tmsctrl1:       equ 1                   ; control bits
+tms4k16k:       equ 7                   ;       4/16K RAM
+tmsblank:       equ 6                   ;       screen blank
+tmsinten:       equ 5                   ;       interrupt enable
+tmsmode1:       equ 4                   ;       mode bit 1
+tmsmode2:       equ 3                   ;       mode bit 2
+tmssprsize:     equ 1                   ;       sprite size
+tmssprmag:      equ 0                   ;       sprite magnification
+
+tmsnametbl:     equ 2                   ; name table location (* $400)
+tmscolortbl:    equ 3                   ; color table location (* $40)
+                                        ; graphics 2 mode: MSB 0 = $0000, MSB 1 = $2000
+tmspattern:     equ 4                   ; pattern table location (* $800)
+tmsspriteattr:  equ 5                   ; sprite attribute table (* $80)
+tmsspritepttn:  equ 6                   ; sprite pattern table (* $800)
+tmscolor:       equ 7                   ; screen colors (upper = text, lower = background)
+
+; colors
+tmstransparent: equ 0
+tmsblack:       equ 1
+tmsmedgreen:    equ 2
+tmslightgreen:  equ 3
+tmsdarkblue:    equ 4
+tmslightblue:   equ 5
+tmsdarkred:     equ 6
+tmscyan:        equ 7
+tmsmedred:      equ 8
+tmslightred:    equ 9
+tmsdarkyellow:  equ $A
+tmslightyellow: equ $B
+tmsdarkgreen:   equ $C
+tmsmagenta:     equ $D
+tmsgray:        equ $E
+tmswhite:       equ $F
+
+; shadow copy of register values
+tmsshadow:
+        defs    8
+
+; set the background color
+;       A = requested color
+tmsbackground:
+        and     $0F                     ; mask off high nybble
+        ld      b, a                    ; save for later
+        ld      a, (tmsshadow+tmscolor) ; get current colors
+        and     $F0                     ; mask off old background
+        or      b                       ; set new background
+        ld      e, tmscolor
+        jp      tmssetreg               ; set the color
+
+; set text color
+;       A = requested color
+tmstextcolor:
+        add     a, a                    ; shift text color into high nybble
+        add     a, a
+        add     a, a
+        add     a, a
+        ld      b, a                    ; save for later
+        ld      a, (tmsshadow+tmscolor) ; get current colors
+        and     $0F                     ; mask off old text color
+        or      b                       ; set new text color
+        ld      e, tmscolor
+        jp      tmssetreg               ; set the color
+
+tmsintenable:
+        ld      a, (tmsshadow+tmsctrl1) ; get current control register value
+        set     tmsinten, a             ; set interrupt enable bit
+        ld      e, tmsctrl1
+        jp      tmssetreg
+
+tmsintdisable:
+        ld      a, (tmsshadow+tmsctrl1) ; get current control register value
+        res     tmsinten, a             ; clear interrupt enable bit
+        ld      e, tmsctrl1
+        jp      tmssetreg
+
+; set a single register value
+;       A = register value
+;       E = register to set
+tmssetreg:
+        ld      hl, tmsshadow           ; get shadow table address
+        ld      d, 0
+        add     hl, de                  ; add offset to selected register
+        ld      (hl), a                 ; save to shadow slot
+        out     (tmsreg), a             ; send to TMS
+        ld      a, tmsregbit            ; select requested register
+        or      e
+        out     (tmsreg), a
+        ret
+
+; configure tms from specified register table
 ;       HL = register table
 tmsconfig:
-	ld      b, 8                    ; 8 registers
+        ld      de, tmsshadow           ; start of shadow area
+	ld      c, 8                    ; 8 registers
 .regloop:
   	ld      a, (hl)                 ; get register value from table
 	out     (tmsreg), a             ; send it to the TMS
 	ld      a, 8                    ; calculate current register number
-	sub     b
-	or      $80                     ; set high bit to indicate a register
+	sub     c
+	or      tmsregbit               ; set high bit to indicate a register
+        ldi                             ; shadow, then inc pointers and dec counter
 	out     (tmsreg), a             ; send it to the TMS
-	inc     hl                      ; next register
-	djnz    .regloop
+        xor     a                       ; continue until count reaches 0
+        or      c
+	jr      nz, .regloop
 	ret
 
 ; register values for blanked screen with 16KB RAM enabled
 tmsblankreg:
         defb    $00, $80, $00, $00, $00, $00, $00, $00
 
-; blank the screen and clear all 16KB of video memory
-tmsclear:
-        ld      hl, tmsblankreg         ; blank the screen
+; reset registers and clear all 16KB of video memory
+tmsreset:
+        ld      hl, tmsblankreg         ; blank the screen with 16KB enabled
         call    tmsconfig
         ld      de, 0                   ; start a address 0000H
         call    tmswriteaddr
@@ -108,18 +208,18 @@ tmsstrout:
 
 ; register values for multicolor mode
 tmsmcreg:
-	db      %00000000               ; external video disabled, multicolor mode
-        db      %11101000               ; 16KB, display enabled, interrupts enabled
+	db      %00000000               ; external video disabled
+        db      %11001000               ; 16KB, display enabled, multicolor mode
         db      $02                     ; name table at $8000
         db      $00                     ; color table not used
         db      $00                     ; pattern table at $0000
         db      $76                     ; sprite attribute table at $3B00
         db      $03                     ; sprite pattern table at $1800
-        db      $04                     ; blue background
+        db      $00                     ; black background
 
 ; initialize tms for multicolor mode 
 tmsmulticolor:
-        call    tmsclear                ; blank the screen and clear vram
+        call    tmsreset                ; blank the screen and clear vram
         ld      de, $0800               ; set name table start address
         call    tmswriteaddr
         ld      d, 6                    ; nametable has 6 different sections
@@ -158,7 +258,7 @@ tmsbitmapreg:
 
 ; initialize TMS for bitmapped graphics
 tmsbitmap:
-        call    tmsclear
+        call    tmsreset
         ld      de, $3800               ; initialize nametable with 3 sets
         call    tmswriteaddr            ; of 256 bytes ranging from 00-FF
         ld      b, 3
@@ -187,7 +287,7 @@ tmstextreg:
 ;       HL = address of font to load
 tmstextmode:
         push    hl                      ; save address of font
-        call    tmsclear
+        call    tmsreset
         pop     hl                      ; load font into pattern table
         ld      de, $0800
         ld      bc, $0800

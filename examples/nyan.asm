@@ -31,14 +31,16 @@ animation:
 
 start:
 	ld      sp, $FFFF
-
-        call    tmsmulticolor           ; initialize tms for multicolor mode
         ld      de, music               ; initialize player
         call    PLY_Init
         ld      a, frameticks           ; initialize interrupt counter to frame length
         ld      (tickcounter), a
         ld      hl, inthandler          ; install the interrupt handler
         call    im1setup
+        call    tmsmulticolor           ; initialize tms for multicolor mode
+        ld      a, tmsdarkblue          ; set background color
+        call    tmsbackground
+        call    tmsintenable            ; enable interrupts on TMS
 mainloop:
         jr      mainloop                ; busy wait and let interrupts do their thing
 
