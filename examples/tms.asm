@@ -19,10 +19,21 @@
 ; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 ; DEALINGS IN THE SOFTWARE.
 
+
+; ---------------------------------------------------------------------------
+; configuration parameters
+
 tmsram:         equ $98                 ; TMS9918A VRAM port
 tmsreg:         equ $99                 ; TMS9918A register port
 
-tmswait:        equ 1                   ; Z80 clock speed / 10
+tmsclkdiv:      equ 3                   ; Z80 clock divider
+                                        ; 1 for <= 10 MHz
+                                        ; 2 for <= 5 MHz
+                                        ; 3 for <= 3.33 MHz
+                                        ; ... and so on
+
+; ---------------------------------------------------------------------------
+; register constants
 
 tmswritebit:    equ $40                 ; bit to indicate memory write
 tmsregbit:      equ $80                 ; bit to indicate register write
@@ -48,7 +59,9 @@ tmsspriteattr:  equ 5                   ; sprite attribute table (* $80)
 tmsspritepttn:  equ 6                   ; sprite pattern table (* $800)
 tmscolor:       equ 7                   ; screen colors (upper = text, lower = background)
 
-; colors
+; ---------------------------------------------------------------------------
+; color constants
+
 tmstransparent: equ 0
 tmsblack:       equ 1
 tmsmedgreen:    equ 2
@@ -66,9 +79,26 @@ tmsmagenta:     equ $D
 tmsgray:        equ $E
 tmswhite:       equ $F
 
+; ---------------------------------------------------------------------------
+; register configuration routines
+
 ; shadow copy of register values
 tmsshadow:
         defs    8, 0
+
+; set a single register value
+;       A = register value
+;       E = register to set
+tmssetreg:
+        ld      hl, tmsshadow           ; get shadow table address
+        ld      d, 0
+        add     hl, de                  ; add offset to selected register
+        ld      (hl), a                 ; save to shadow slot
+        out     (tmsreg), a             ; send to TMS
+        ld      a, tmsregbit            ; select requested register
+        or      e
+        out     (tmsreg), a
+        ret
 
 ; set the background color
 ;       A = requested color
@@ -109,20 +139,6 @@ tmsintdisable:
         ld      e, tmsctrl1
         jp      tmssetreg               ; save it back
 
-; set a single register value
-;       A = register value
-;       E = register to set
-tmssetreg:
-        ld      hl, tmsshadow           ; get shadow table address
-        ld      d, 0
-        add     hl, de                  ; add offset to selected register
-        ld      (hl), a                 ; save to shadow slot
-        out     (tmsreg), a             ; send to TMS
-        ld      a, tmsregbit            ; select requested register
-        or      e
-        out     (tmsreg), a
-        ret
-
 ; configure tms from specified register table
 ;       HL = register table
 tmsconfig:
@@ -141,25 +157,8 @@ tmsconfig:
 	jr      nz, .regloop
 	ret
 
-; register values for blanked screen with 16KB RAM enabled
-tmsblankreg:
-        defb    $00, $80, $00, $00, $00, $00, $00, $00
-
-; reset registers and clear all 16KB of video memory
-tmsreset:
-        ld      hl, tmsblankreg         ; blank the screen with 16KB enabled
-        call    tmsconfig
-        ld      de, 0                   ; start a address 0000H
-        call    tmswriteaddr
-        ld      de, $4000               ; write 16KB
-        ld      bc, tmsram              ; writing 0s to vram
-.clearloop:
-        out     (c), b                  ; send to vram
-        dec     de                      ; continue until counter is 0
-        ld      a, d
-        or      e
-        jr      nz, .clearloop
-        ret
+; ---------------------------------------------------------------------------
+; memory access routines
 
 ; set the next address of vram to write
 ;       DE = address
@@ -181,7 +180,7 @@ tmswrite:
 .copyloop:
         ld      a, (hl)                 ; get the current byte from ram
         out     (tmsram), a             ; send it to vram
-        defs    11*tmswait, 0           ; nops to waste time
+        defs    11/tmsclkdiv, 0         ; nops to waste time
         inc     hl                      ; next byte
         dec     bc                      ; continue until count is zero
         ld      a, b
@@ -199,9 +198,32 @@ tmsstrout:
         cp      0                       ; return when NULL is encountered
         ret     z
         out     (tmsram), a             ; send it to vram
-        defs    14*tmswait, 0           ; nops to waste time
+        defs    14/tmsclkdiv, 0         ; nops to waste time
         inc     hl                      ; next byte
         jr      .strloop
+
+; ---------------------------------------------------------------------------
+; initialization routines
+
+; register values for blanked screen with 16KB RAM enabled
+tmsblankreg:
+        defb    $00, $80, $00, $00, $00, $00, $00, $00
+
+; reset registers and clear all 16KB of video memory
+tmsreset:
+        ld      hl, tmsblankreg         ; blank the screen with 16KB enabled
+        call    tmsconfig
+        ld      de, 0                   ; start a address 0000H
+        call    tmswriteaddr
+        ld      de, $4000               ; write 16KB
+        ld      bc, tmsram              ; writing 0s to vram
+.clearloop:
+        out     (c), b                  ; send to vram
+        dec     de                      ; continue until counter is 0
+        ld      a, d
+        or      e
+        jr      nz, .clearloop
+        ret
 
 ; register values for multicolor mode
 tmsmcreg:
