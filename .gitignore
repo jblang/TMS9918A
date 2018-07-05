@@ -19,3 +19,10 @@ _autosave-*
 # Exported BOM files
 *.xml
 *.csv
+
+# Assembler output
+*.bin
+*.com
+*.hex
+*.out
+*.lst
