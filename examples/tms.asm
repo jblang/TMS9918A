@@ -22,12 +22,14 @@
 tmsram:         equ $98                 ; TMS9918A VRAM port
 tmsreg:         equ $99                 ; TMS9918A register port
 
+tmswait:        equ 1                   ; Z80 clock speed / 10
+
 tmswritebit:    equ $40                 ; bit to indicate memory write
 tmsregbit:      equ $80                 ; bit to indicate register write
 
 tmsctrl0:       equ 0                   ; control bits
 tmsmode3:       equ 1                   ;       mode bit 3
-tmsextvid       equ 0                   ;       external video
+tmsextvid:      equ 0                   ;       external video
 
 tmsctrl1:       equ 1                   ; control bits
 tms4k16k:       equ 7                   ;       4/16K RAM
@@ -66,7 +68,7 @@ tmswhite:       equ $F
 
 ; shadow copy of register values
 tmsshadow:
-        defs    8
+        defs    8, 0
 
 ; set the background color
 ;       A = requested color
@@ -91,19 +93,21 @@ tmstextcolor:
         and     $0F                     ; mask off old text color
         or      b                       ; set new text color
         ld      e, tmscolor
-        jp      tmssetreg               ; set the color
+        jp      tmssetreg               ; save it back
 
+; enable vblank interrupts
 tmsintenable:
         ld      a, (tmsshadow+tmsctrl1) ; get current control register value
         set     tmsinten, a             ; set interrupt enable bit
         ld      e, tmsctrl1
-        jp      tmssetreg
+        jp      tmssetreg               ; save it back
 
+; disable vblank interrupts
 tmsintdisable:
         ld      a, (tmsshadow+tmsctrl1) ; get current control register value
         res     tmsinten, a             ; clear interrupt enable bit
         ld      e, tmsctrl1
-        jp      tmssetreg
+        jp      tmssetreg               ; save it back
 
 ; set a single register value
 ;       A = register value
@@ -157,12 +161,6 @@ tmsreset:
         jr      nz, .clearloop
         ret
 
-; waste time to let the TMS9918A catch up
-tmswait:                               ; call: 17 cycles
-        db      0,0,0,0,0,0             ; nops: 6 x 4 = 24 cycles
-        ret                             ; ret: 10 cycles
-                                        ; 51 cycles total (5.1 us @ 10 MHz)
-
 ; set the next address of vram to write
 ;       DE = address
 tmswriteaddr:
@@ -183,7 +181,7 @@ tmswrite:
 .copyloop:
         ld      a, (hl)                 ; get the current byte from ram
         out     (tmsram), a             ; send it to vram
-        call    tmswait                 ; waste time
+        defs    11*tmswait, 0           ; nops to waste time
         inc     hl                      ; next byte
         dec     bc                      ; continue until count is zero
         ld      a, b
@@ -201,10 +199,9 @@ tmsstrout:
         cp      0                       ; return when NULL is encountered
         ret     z
         out     (tmsram), a             ; send it to vram
-        call    tmswait                 ; waste time to let TMS process
+        defs    14*tmswait, 0           ; nops to waste time
         inc     hl                      ; next byte
         jr      .strloop
-        ret
 
 ; register values for multicolor mode
 tmsmcreg:
