@@ -53,7 +53,7 @@ tmssprmag:      equ 0                   ;       sprite magnification
 
 tmsnametbl:     equ 2                   ; name table location (* $400)
 tmscolortbl:    equ 3                   ; color table location (* $40)
-                                        ; graphics 2 mode: MSB 0 = $0000, MSB 1 = $2000
+                                        ;       graphics 2 mode: MSB 0 = $0000, MSB 1 = $2000
 tmspattern:     equ 4                   ; pattern table location (* $800)
 tmsspriteattr:  equ 5                   ; sprite attribute table (* $80)
 tmsspritepttn:  equ 6                   ; sprite pattern table (* $800)
@@ -78,6 +78,60 @@ tmsdarkgreen:   equ $C
 tmsmagenta:     equ $D
 tmsgray:        equ $E
 tmswhite:       equ $F
+
+; ---------------------------------------------------------------------------
+; text routines
+; set text color
+;       A = requested color
+tmstextcolor:
+        add     a, a                    ; shift text color into high nybble
+        add     a, a
+        add     a, a
+        add     a, a
+        ld      b, a                    ; save for later
+        ld      a, (tmsshadow+tmscolor) ; get current colors
+        and     $0F                     ; mask off old text color
+        or      b                       ; set new text color
+        ld      e, tmscolor
+        jp      tmssetreg               ; save it back
+
+; set the address to place text at X/Y coordinate
+;       A = X
+;       E = Y
+tmstextpos:
+        ld      d, 0
+        ld      hl, 0
+        add     hl, de                  ; Y x 1
+        add     hl, hl                  ; Y x 2
+        add     hl, hl                  ; Y x 4
+        add     hl, de                  ; Y x 5
+        add     hl, hl                  ; Y x 10
+        add     hl, hl                  ; Y x 20
+        add     hl, hl                  ; Y x 40
+        ld      e, a                    ; zero the line
+        add     hl, de                  ; add column for final address
+        ex      de, hl                  ; send address to TMS
+        call    tmswriteaddr
+        ret
+
+; copy a null-terminated string to VRAM
+;       HL = ram source address
+tmsstrout:
+        ld      a, (hl)                 ; get the current byte from ram
+        cp      0                       ; return when NULL is encountered
+        ret     z
+        out     (tmsram), a             ; send it to vram
+        defs    14/tmsclkdiv, 0         ; nops to waste time
+        inc     hl                      ; next byte
+        jr      tmsstrout
+
+; repeat a character a certain number of times
+;       A = character to output
+;       B = count
+tmschrrpt:
+        out     (tmsram), a
+        djnz    tmschrrpt
+        ret
 
 ; ---------------------------------------------------------------------------
 ; register configuration routines
@@ -110,20 +164,6 @@ tmsbackground:
         or      b                       ; set new background
         ld      e, tmscolor
         jp      tmssetreg               ; set the color
-
-; set text color
-;       A = requested color
-tmstextcolor:
-        add     a, a                    ; shift text color into high nybble
-        add     a, a
-        add     a, a
-        add     a, a
-        ld      b, a                    ; save for later
-        ld      a, (tmsshadow+tmscolor) ; get current colors
-        and     $0F                     ; mask off old text color
-        or      b                       ; set new text color
-        ld      e, tmscolor
-        jp      tmssetreg               ; save it back
 
 ; enable vblank interrupts
 tmsintenable:
@@ -187,20 +227,6 @@ tmswrite:
         or      c
         jr      nz, .copyloop
         ret
-
-; copy a null-terminated string to VRAM
-;       HL = ram source address
-;       DE = vram destination address
-tmsstrout:
-        call    tmswriteaddr
-.strloop:
-        ld      a, (hl)                 ; get the current byte from ram
-        cp      0                       ; return when NULL is encountered
-        ret     z
-        out     (tmsram), a             ; send it to vram
-        defs    14/tmsclkdiv, 0         ; nops to waste time
-        inc     hl                      ; next byte
-        jr      .strloop
 
 ; ---------------------------------------------------------------------------
 ; initialization routines
