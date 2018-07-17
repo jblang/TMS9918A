@@ -130,8 +130,17 @@ tmsstrout:
 ;       B = count
 tmschrrpt:
         out     (tmsram), a
+        defs    14/tmsclkdiv, 0
         djnz    tmschrrpt
         ret
+
+; output a character
+;       A = character to output
+tmschrout:
+        out     (tmsram), a
+        defs    14/tmsclkdiv, 0
+        ret
+
 
 ; ---------------------------------------------------------------------------
 ; register configuration routines
