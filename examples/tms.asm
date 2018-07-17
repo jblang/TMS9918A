@@ -302,7 +302,7 @@ tmsmulticolor:
 ; register values for bitmapped graphics
 tmsbitmapreg:
         db      %00000010               ; bitmap mode, no external video
-        db      %11000000               ; 16KB ram; enable display
+        db      %11000010               ; 16KB ram; enable display
         db      $0e                     ; name table at 3800H
         db      $ff                     ; color table at 2000H
         db      $03                     ; pattern table at 0000H
