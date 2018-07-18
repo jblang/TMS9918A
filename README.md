@@ -10,20 +10,27 @@ The board has been built and tested using the gerber files generated from this p
 
 ## Bill of Materials 
 
-- rc9918 PCB ([OSH Park](https://oshpark.com/projects/KfwMvnwH) | [Gerbers](https://cdn.hackaday.io/files/1590576805094688/tms9918a_gerber.zip))
-- TMS9918A chip. Available on ebay. The TMS9918 without the A is missing a graphics mode.  
-- KLPX-0848A-2-Y RCA connector. Other models may not fit.  
-- FBA04HA600VB-00 ferrite bead. I got a message from Mouser that it is end of life now.  Other ferrite beads should work fine. The closer in size to the footprint of a 1/4W resistor, the better it will fit. 
-- AS6C62256-55PCN or compatible 32KB SRAM.  I have put two footprints so either a wide or narrow DIP-28 will work as long as the pin-out is the same. I have also tested the circuit with a UM61M256K-15 32K SRAM salvaged off of an old Pentium motherboard where it was used for cache.
-- LFXTAL029962REEL 10.73866MHz crystal with 16pf caps. 
-- 1 74HCT32 Quad OR gate
-- 1 74HCT04 Hex Inverter
-- 3 74HCT574 Octal Flip-Flops 
-- 9 0.1uf caps (bypass caps for each chip and one for the video output circuit)
-- 2N4401 NPN transistor. Any NPN with similar characteristics should work. 
-- 1 each 75 ohm, 470 ohm, and 0 ohm resistors. Wire jumper can be used in place of 0 ohm resistor.
-- 40 pin right angle header
-- 2x8 pin straight header and 1 jumper block
+| Component | Description |
+|---|---|
+| PCB | rc9918 PCB ([OSH Park](https://oshpark.com/projects/KfwMvnwH) - [Gerbers](https://cdn.hackaday.io/files/1590576805094688/tms9918a_gerber.zip)) |
+| U1 | 74HCT32 Quad OR gate |
+| U2 | 74HCT138 |
+| U3 | TMS9918A chip. Available on ebay. The TMS9918 without the A is missing a graphics mode. |
+| U4 | 74HCT04 Hex Inverter |
+| U5, U6, U7 | 74HCT574 Octal Flip-Flops |
+| U8 | AS6C62256-55PCN or compatible 32KB SRAM.  I have put two footprints so either a wide or narrow DIP-28 will work as long as the pin-out is the same. I have also tested the circuit with a UM61M256K-15 32K SRAM salvaged off of an old Pentium motherboard where it was used for cache. |
+| R1 | 75 ohm resistor |
+| R2 | 0 ohm resistors. Wire jumper can be used in place of 0 ohm resistor. |
+| R3 | 470 ohm resistor |
+| L1 | FBA04HA600VB-00 ferrite bead. I got a message from Mouser that it is end of life now.  Other ferrite beads should work fine. The closer in size to the footprint of a 1/4W resistor, the better it will fit. |
+| Y1 | LFXTAL029962REEL 10.73866MHz crystal |
+| C1, C2 | 16pf ceramic or MLCC capacitor |
+| C3-C11 | 0.1uf caps (bypass caps for each chip and one for the video output circuit) |
+| Q1 | 2N4401 NPN transistor. Any NPN with similar characteristics should work. |
+| J1 | 40 pin right angle header |
+| J2 | KLPX-0848A-2-Y RCA connector. Other models may not fit.  |
+| J3 | UNUSED - these holes are used for the wide version of U8 |
+| J4 | 2x8 pin straight header and 1 jumper block |
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
