@@ -299,7 +299,6 @@ setbit
                 call    tmswriteaddr            ; set write address within pattern table
                 ld      a, (pattern)            ; send the pattern to the TMS
                 out     (tmsram), a
-                call    tmswait
 
                 ld      bc, 2000h               ; add the color table base address
                 ex      de, hl
