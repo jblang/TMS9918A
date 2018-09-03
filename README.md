@@ -45,7 +45,7 @@ The default jumper configurations for the RC2014 are below.
 | Jumper | Jumper Block Configuration | Results |
 |---|---|---|
 | `J4` | 5th from left | Port 80-9F |
-| `J6` | Middle | Upper half of port range selected by `J4` |
+| `J6` | Right | Upper half of port range selected by `J4` |
 | `JP1` | Upper | Ports 98 & 99 |
 | `JP2` | Upper | Ports 98 & 99 | 
 | `JP4` | Upper Pair | TMS9918A interrupts sent to INT |
@@ -56,7 +56,7 @@ See jumper description at [the Hackaday.io article](https://hackaday.io/project/
 ### Port Address Jumpers
 
 * J4 configures address bits 7-5 which lets you select a block of 32 addresses: 00-1F (left) ... E0-FF (right). For ColecoVision, you would set this to A0-BF (6th position). For MSX, you'd set it to 80-9F (5th position).  For Sord M5, you'd set it to 00-1F (1st position).
-* J6 configures address bit 4. There are 3 options: ignore (left), 1 (middle), or 0 (right). This lets you use the entire 32 address range, the upper half, or the lower half, respsectively. For ColecoVision, you would set this to ignore (left). For MSX and Sord, you would set it to 1 (middle).
+* J6 configures address bit 4. There are 3 options: ignore (left), 0 (middle), or 1 (right). This lets you use the entire 32 address range, the lower half, or the upper half, respectively. For ColecoVision, you would set this to ignore (left). For MSX and Sord, you would set it to 1 (right).
 * JP1 configures address bit 3. In the upper position, it must be 1. In the lower position, it is ignored.  For MSX, you would set this to the upper position. For ColecoVision or Sord, you would set it to the lower position.
 * JP2 configures address bit 2 and 1. In the upper position, they must both be 0. In the lower position, they are ignored.  For MSX, you would set this to the upper position. For ColecoVision and Sord, you would set it to the lower position.
 
