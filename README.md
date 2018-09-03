@@ -18,7 +18,7 @@ The board has been built and tested using the gerber files generated from this p
 | U3 | TMS9918A chip. Available on ebay. The TMS9918 without the A is missing a graphics mode. |
 | U4 | 74HCT04 Hex Inverter |
 | U5, U6, U7 | 74HCT574 Octal Flip-Flops |
-| U8 | AS6C62256-55PCN or compatible 32KB SRAM.  I have put two footprints so either a wide or narrow DIP-28 will work as long as the pin-out is the same. I have also tested the circuit with a UM61M256K-15 32K SRAM salvaged off of an old Pentium motherboard where it was used for cache. |
+| U8 | AS6C62256-55PCN, HM62256BLP-7, or compatible 32KB SRAM.  I have put two footprints so either a wide or narrow DIP-28 will work as long as the pin-out is the same. I have also tested the circuit with a UM61M256K-15 32K SRAM salvaged off of an old Pentium motherboard where it was used for cache. |
 | R1 | 75 ohm resistor |
 | R2 | 0 ohm resistors. Wire jumper can be used in place of 0 ohm resistor. |
 | R3 | 470 ohm resistor |
@@ -27,25 +27,44 @@ The board has been built and tested using the gerber files generated from this p
 | C1, C2 | 16pf ceramic or MLCC capacitor |
 | C3-C11 | 0.1uf caps (bypass caps for each chip and one for the video output circuit) |
 | Q1 | 2N4401 NPN transistor. Any NPN with similar characteristics should work. |
-| J1 | 40 pin right angle header |
+| J1 & J5 | 2x40 pin right angle header, with pins from upper row removed to fit J5 |
 | J2 | KLPX-0848A-2-Y RCA connector. Other models may not fit.  |
-| J3 | UNUSED - these holes are used for the wide version of U8 |
 | J4 | 2x8 pin straight header and 1 jumper block |
+| J6 | 2x3 pin straight header and 1 jumper block |
+| J7 | 1x4 pin straight header and 1 jumper block |
+| JP1 | 1x3 pin straight header and 1 jumper block |
+| JP2 | 1x3 pin straight header and 1 jumper block |
+| JP4 | 1x3 pin straight header and 1 jumper block |
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
-## Address Configuration Jumper
+## Jumper Descriptions
+### Default Jumper Configurations
+The default jumper configurations for the RC2014 are below. 
 
-The jumper above the 74HCT138 selects the ports that the TMS9918A is mapped to. From left to right, the jumper will assign the TMS9918A's RAM and Register ports, respectively, to the following addresses:
+| Jumper | Jumper Block Configuration | Results |
+|---|---|---|
+| `J4` | 5th from left | Port 80-9F |
+| `J6` | Middle | Upper half of port range selected by `J4` |
+| `JP1` | Upper | Ports 98 & 99 |
+| `JP2` | Upper | Ports 98 & 99 | 
+| `JP4` | Upper Pair | TMS9918A interrupts sent to INT |
+| `J7` | _None_ | This is the clock signal header |
 
-- 08/09
-- 18/19
-- 48/49
-- 58/59
-- 88/89
-- 98/99 (recommended for MSX compatibility)
-- C8/C9
-- D8/D9
+See jumper description at [the Hackaday.io article](https://hackaday.io/project/159057-rc9918/log/149923-new-board-revision) for more detail on each jumper.
+
+### Port Address Jumpers
+
+* J4 configures address bits 7-5 which lets you select a block of 32 addresses: 00-1F (left) ... E0-FF (right). For ColecoVision, you would set this to A0-BF (6th position). For MSX, you'd set it to 80-9F (5th position).  For Sord M5, you'd set it to 00-1F (1st position).
+* J6 configures address bit 4. There are 3 options: ignore (left), 1 (middle), or 0 (right). This lets you use the entire 32 address range, the upper half, or the lower half, respsectively. For ColecoVision, you would set this to ignore (left). For MSX and Sord, you would set it to 1 (middle).
+* JP1 configures address bit 3. In the upper position, it must be 1. In the lower position, it is ignored.  For MSX, you would set this to the upper position. For ColecoVision or Sord, you would set it to the lower position.
+* JP2 configures address bit 2 and 1. In the upper position, they must both be 0. In the lower position, they are ignored.  For MSX, you would set this to the upper position. For ColecoVision and Sord, you would set it to the lower position.
+
+### Interrupt Configuration Jumper
+The jumper `JP4` is used to determine where the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. ColecoVision connects the video interrupt to NMI, so this change was necessary for compatibility.  MSX uses INT, and most other systems do as well.
+
+### Clock Header 
+The `J7` header has pins for (left to right) CPUCLK, GROMCLK, EXTVDP, and GND. This should allow the CPUCLK and GROMCLK signals to be used via jumper cables with other boards the need them, for example on the Sord M5.  It should also be possible to daisy-chain multiple TMS9918A chips using the EXTVDP signal, or to genlock an external video source. The GND pin can be used with an external video source if needed.  
 
 ## Resources
 
