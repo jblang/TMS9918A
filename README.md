@@ -8,6 +8,8 @@ This board can be configured to use the same ports as the MSX, so it's possible 
 
 The board has been built and tested using the gerber files generated from this project. The gerber files are available for direct download below, and the project has also been shared on OSH Park.
 
+[Ready-to-Assemble](https://www.tindie.com/products/mfkamprath/tms9918a-video-module-for-rc2014/) kits are available on Tindie.  These are put toether and sold by Michael Kamprath with my permission.  However, I offer no warranty or guarantee of support.
+
 ## Bill of Materials 
 
 | Component | Description |
