@@ -14,7 +14,7 @@ The board has been built and tested using the gerber files generated from this p
 
 | Component | Description |
 |---|---|
-| PCB | rc9918 PCB ([OSH Park](https://oshpark.com/projects/KfwMvnwH) - [Gerbers](https://cdn.hackaday.io/files/1590576805094688/tms9918a_gerber.zip)) |
+| PCB | rc9918 PCB ([OSH Park](https://oshpark.com/projects/KfwMvnwH) - [Gerbers](https://cdn.hackaday.io/files/1590576805094688/rc9918_rev3.zip)) |
 | U1 | 74HCT32 Quad OR gate |
 | U2 | 74HCT138 |
 | U3 | TMS9918A chip. Available on ebay. The TMS9918 without the A is missing a graphics mode. |
