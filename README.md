@@ -65,6 +65,11 @@ See jumper description at [the Hackaday.io article](https://hackaday.io/project/
 ### Interrupt Configuration Jumper
 The jumper `JP4` is used to determine where the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. ColecoVision connects the video interrupt to NMI, so this change was necessary for compatibility.  MSX uses INT, and most other systems do as well.
 
+**Warning**: do not put the jumper in the INT position if you have other cards that make use of
+the /INT line, such as the SIO card that comes with the RC2014. The TMS9918A does not have an
+open collector interrupt output so it will fight with other cards for control of the interrupt.
+This will prevent proper operation and may damage one or both cards.
+
 ### Clock Header 
 The `J7` header has pins for (left to right) CPUCLK, GROMCLK, EXTVDP, and GND. This should allow the CPUCLK and GROMCLK signals to be used via jumper cables with other boards the need them, for example on the Sord M5.  It should also be possible to daisy-chain multiple TMS9918A chips using the EXTVDP signal, or to genlock an external video source. The GND pin can be used with an external video source if needed.  
 
@@ -77,3 +82,13 @@ The `J7` header has pins for (left to right) CPUCLK, GROMCLK, EXTVDP, and GND. T
 - [Hackaday Page](https://hackaday.io/project/159057-rc9918)
 - [Example Assembly Programs](examples)
 - [z80ctrl](https://github.com/jblang/z80ctrl): my other RC2014 project with support for this board.
+
+## License
+
+Copyright 2018 J.B. Langston
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
