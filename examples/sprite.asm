@@ -1,5 +1,6 @@
 ramtop:         equ $ffff
 im1vect:        equ $38                 ; location of interrupt mode 1 vector
+nmivect:        equ $66
 frameticks:     equ 6                   ; number of interrupts per animation frame
 framecount:     equ 8                   ; number of frames in animation
 
@@ -20,7 +21,7 @@ start:
         ld      a, frameticks           ; initialize interrupt counter to frame length
         ld      (tickcounter), a
         ld      hl, inthandler          ; install the interrupt handler
-        call    im1setup
+        call    nmisetup
         call    tmsintenable            ; enable interrupts on TMS
 mainloop:
         jr      mainloop                ; busy wait and let interrupts do their thing
@@ -34,6 +35,14 @@ im1setup:
         ld      (im1vect+1), hl         ; load interrupt vector
 	im      1                       ; enable interrupt mode 1
         ei
+        ret
+
+; set up NMI vector
+;       HL = interrupt handler
+nmisetup:
+	ld      a, $C3                  ; prefix with jump instruction
+	ld      (nmivect), a
+        ld      (nmivect+1), hl         ; load interrupt vector
         ret
 
 ; interrupt handler: rotate animation frames
