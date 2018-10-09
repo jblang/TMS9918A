@@ -23,6 +23,7 @@
         org 100h
 
 ramtop:         equ $ffff
+bdos:           equ $0005
 linelen:        equ 32
 dblhorizontal:  equ 205
 dblvertical:    equ 186
@@ -35,11 +36,15 @@ dblbottomright: equ 188
 
         jp start
 
+oldstack:
+        dw      0
+
 tmsfont:
         include "tmsfont.asm"
         include "tms.asm"
 
 start:
+	ld	(oldstack),sp                   ; save old stack poitner
         ld      sp, ramtop                      ; set up stack
         ld      hl, tmsfont                     ; pointer to font
         call    tmstextmode                     ; initialize text mode
@@ -74,7 +79,9 @@ nextchar:
         inc     c
         jp      nextline                        ; do the next line
 done:
-        halt
+        ld	sp,(oldstack)	                ; put stack back to how we found it
+        ld	c,$0			        ; this is the CP/M proper exit call
+        jp	bdos
 
 textborder:
         ld      a, 0                            ; start at upper left

@@ -7,12 +7,19 @@
 ;
 ; Assemble with sjasm
 
+ramtop:         equ     $ffff
+bdos:           equ     $0005
+
                 org     100h
-                ld      sp, 0ffffh              ; initailize stack
+                ld      (oldstack),sp           ; save old stack pointer
+                ld      sp, ramtop              ; initailize stack
                 jp      mandelbrot
 
                 include "tms.asm"               ; TMS subroutines
-                
+
+oldstack:
+        dw      0
+
 ; mandelbrot constants
 scale           equ     256                     ; Do NOT change this - the
                                                 ; arithmetic routines rely on
@@ -179,7 +186,9 @@ inner_loop_end
 ; }
 
 mandel_end      
-                halt 			        ; Return to CP/M
+        ld	sp,(oldstack)	                ; put stack back to how we found it
+        ld	c,$0			        ; this is the CP/M proper exit call
+        jp	bdos
 
 ;
 ;   Compute DEHL = BC * DE (signed): This routine is not too clever but it
