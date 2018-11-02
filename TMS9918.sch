@@ -1,5 +1,4 @@
 EESchema Schematic File Version 4
-LIBS:TMS9918-cache
 EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
@@ -584,7 +583,6 @@ NoConn ~ 950  1200
 NoConn ~ 950  1300
 NoConn ~ 950  2500
 NoConn ~ 950  2900
-NoConn ~ 950  2700
 NoConn ~ 950  4700
 NoConn ~ 950  4600
 NoConn ~ 950  4500
@@ -1007,8 +1005,6 @@ F 3 "" H 1800 2150 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 Wire Wire Line
-	3200 2550 2050 2550
-Wire Wire Line
 	2050 2550 2050 2150
 Wire Wire Line
 	2050 2150 1900 2150
@@ -1016,8 +1012,6 @@ Wire Wire Line
 	1800 1900 1800 1650
 Wire Wire Line
 	1800 2400 1800 2600
-Wire Wire Line
-	1800 2600 950  2600
 $Comp
 L Connector_Generic:Conn_02x03_Odd_Even J6
 U 1 1 5B562712
@@ -1051,12 +1045,12 @@ Wire Wire Line
 Wire Wire Line
 	2400 5600 2450 5600
 $Comp
-L Connector_Generic:Conn_01x04 J7
+L Connector_Generic:Conn_01x05 J7
 U 1 1 5B565167
 P 5900 3700
 F 0 "J7" H 5900 3900 50  0000 C CNN
-F 1 "Conn_01x04" H 5900 3400 50  0000 C CNN
-F 2 "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical" H 5900 3700 50  0001 C CNN
+F 1 "Ext" H 5900 3400 50  0000 C CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" H 5900 3700 50  0001 C CNN
 F 3 "" H 5900 3700 50  0001 C CNN
 	1    5900 3700
 	-1   0    0    -1  
@@ -1705,4 +1699,25 @@ Wire Wire Line
 	10900 1000 10900 950 
 Wire Wire Line
 	10550 1000 10550 950 
+Text Label 6100 3500 0    60   ~ 0
+BUSCLK
+Text Label 950  2700 0    60   ~ 0
+BUSCLK
+$Comp
+L Diode:1N4148 D1
+U 1 1 5C00B794
+P 2400 2550
+F 0 "D1" H 2400 2334 50  0000 C CNN
+F 1 "1N4148" H 2400 2425 50  0000 C CNN
+F 2 "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal" H 2400 2375 50  0001 C CNN
+F 3 "http://www.nxp.com/documents/data_sheet/1N4148_1N4448.pdf" H 2400 2550 50  0001 C CNN
+	1    2400 2550
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	1800 2600 950  2600
+Wire Wire Line
+	2050 2550 2250 2550
+Wire Wire Line
+	2550 2550 3200 2550
 $EndSCHEMATC
