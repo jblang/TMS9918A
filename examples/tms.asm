@@ -23,10 +23,10 @@
 ; ---------------------------------------------------------------------------
 ; configuration parameters
 
-tmsram:         equ $98                 ; TMS9918A VRAM port
-tmsreg:         equ $99                 ; TMS9918A register port
+tmsram:         equ $be                 ; TMS9918A VRAM port
+tmsreg:         equ $bf                 ; TMS9918A register port
 
-tmsclkdiv:      equ 3                   ; Z80 clock divider
+tmswait:        equ 3                   ; Z80 clock divider
                                         ; 1 for <= 10 MHz
                                         ; 2 for <= 5 MHz
                                         ; 3 for <= 3.33 MHz
@@ -78,69 +78,6 @@ tmsdarkgreen:   equ $C
 tmsmagenta:     equ $D
 tmsgray:        equ $E
 tmswhite:       equ $F
-
-; ---------------------------------------------------------------------------
-; text routines
-; set text color
-;       A = requested color
-tmstextcolor:
-        add     a, a                    ; shift text color into high nybble
-        add     a, a
-        add     a, a
-        add     a, a
-        ld      b, a                    ; save for later
-        ld      a, (tmsshadow+tmscolor) ; get current colors
-        and     $0F                     ; mask off old text color
-        or      b                       ; set new text color
-        ld      e, tmscolor
-        jp      tmssetreg               ; save it back
-
-; set the address to place text at X/Y coordinate
-;       A = X
-;       E = Y
-tmstextpos:
-        ld      d, 0
-        ld      hl, 0
-        add     hl, de                  ; Y x 1
-        add     hl, hl                  ; Y x 2
-        add     hl, hl                  ; Y x 4
-        add     hl, de                  ; Y x 5
-        add     hl, hl                  ; Y x 10
-        add     hl, hl                  ; Y x 20
-        add     hl, hl                  ; Y x 40
-        ld      e, a                    ; zero the line
-        add     hl, de                  ; add column for final address
-        ex      de, hl                  ; send address to TMS
-        call    tmswriteaddr
-        ret
-
-; copy a null-terminated string to VRAM
-;       HL = ram source address
-tmsstrout:
-        ld      a, (hl)                 ; get the current byte from ram
-        cp      0                       ; return when NULL is encountered
-        ret     z
-        out     (tmsram), a             ; send it to vram
-        defs    14/tmsclkdiv, 0         ; nops to waste time
-        inc     hl                      ; next byte
-        jr      tmsstrout
-
-; repeat a character a certain number of times
-;       A = character to output
-;       B = count
-tmschrrpt:
-        out     (tmsram), a
-        defs    14/tmsclkdiv, 0
-        djnz    tmschrrpt
-        ret
-
-; output a character
-;       A = character to output
-tmschrout:
-        out     (tmsram), a
-        defs    14/tmsclkdiv, 0
-        ret
-
 
 ; ---------------------------------------------------------------------------
 ; register configuration routines
@@ -229,12 +166,74 @@ tmswrite:
 .copyloop:
         ld      a, (hl)                 ; get the current byte from ram
         out     (tmsram), a             ; send it to vram
-        defs    11/tmsclkdiv, 0         ; nops to waste time
+        defs    11/tmswait, 0         ; nops to waste time
         inc     hl                      ; next byte
         dec     bc                      ; continue until count is zero
         ld      a, b
         or      c
         jr      nz, .copyloop
+        ret
+
+; ---------------------------------------------------------------------------
+; text routines
+; set text color
+;       A = requested color
+tmstextcolor:
+        add     a, a                    ; shift text color into high nybble
+        add     a, a
+        add     a, a
+        add     a, a
+        ld      b, a                    ; save for later
+        ld      a, (tmsshadow+tmscolor) ; get current colors
+        and     $0F                     ; mask off old text color
+        or      b                       ; set new text color
+        ld      e, tmscolor
+        jp      tmssetreg               ; save it back
+
+; set the address to place text at X/Y coordinate
+;       A = X
+;       E = Y
+tmstextpos:
+        ld      d, 0
+        ld      hl, 0
+        add     hl, de                  ; Y x 1
+        add     hl, hl                  ; Y x 2
+        add     hl, hl                  ; Y x 4
+        add     hl, de                  ; Y x 5
+        add     hl, hl                  ; Y x 10
+        add     hl, hl                  ; Y x 20
+        add     hl, hl                  ; Y x 40
+        ld      e, a
+        add     hl, de                  ; add column for final address
+        ex      de, hl                  ; send address to TMS
+        call    tmswriteaddr
+        ret
+
+; copy a null-terminated string to VRAM
+;       HL = ram source address
+tmsstrout:
+        ld      a, (hl)                 ; get the current byte from ram
+        cp      0                       ; return when NULL is encountered
+        ret     z
+        out     (tmsram), a             ; send it to vram
+        defs    14/tmswait, 0         ; nops to waste time
+        inc     hl                      ; next byte
+        jr      tmsstrout
+
+; repeat a character a certain number of times
+;       A = character to output
+;       B = count
+tmschrrpt:
+        out     (tmsram), a
+        defs    14/tmswait, 0
+        djnz    tmschrrpt
+        ret
+
+; output a character
+;       A = character to output
+tmschrout:
+        out     (tmsram), a
+        defs    14/tmswait, 0
         ret
 
 ; ---------------------------------------------------------------------------
@@ -303,11 +302,11 @@ tmsmulticolor:
 tmsbitmapreg:
         db      %00000010               ; bitmap mode, no external video
         db      %11000010               ; 16KB ram; enable display
-        db      $0e                     ; name table at 3800H
-        db      $ff                     ; color table at 2000H
-        db      $03                     ; pattern table at 0000H
-        db      $76                     ; sprite attribute table at 3B00H
-        db      $03                     ; sprite pattern table at 1800H
+        db      $0e                     ; name table at $3800
+        db      $ff                     ; color table at $2000
+        db      $03                     ; pattern table at $0
+        db      $76                     ; sprite attribute table at $3B00
+        db      $03                     ; sprite pattern table at $1800
         db      $01                     ; black background
 
 ; initialize TMS for bitmapped graphics
@@ -324,6 +323,23 @@ tmsbitmap:
         jr      nz, .nameloop
         djnz    .nameloop
         ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
+        call    tmsconfig
+        ret
+
+tmsgraph1reg:
+        db      %00000000               ; graphics 1 mode, no external video
+        db      %11000000               ; 16K, enable display, disable interrupt
+        db      $05                     ; name table at $1400
+        db      $80                     ; color table at $2000
+        db      $01                     ; pattern table at $800
+        db      $20                     ; sprite attribute table at $1000
+        db      $00                     ; sprite pattern table at $0
+        db      $01                     ; black background
+
+; initialize TMS for graphics 1 mode
+tmsgraph1:
+        call    tmsreset
+        ld      hl, tmsgraph1reg
         call    tmsconfig
         ret
 
