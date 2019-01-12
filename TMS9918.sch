@@ -1,4 +1,5 @@
 EESchema Schematic File Version 4
+LIBS:TMS9918-cache
 EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
@@ -6,7 +7,7 @@ encoding utf-8
 Sheet 1 1
 Title "TMS9918A video card for RC2014"
 Date "2018-10-25"
-Rev "REV3"
+Rev "REV4"
 Comp "J.B. Langston"
 Comment1 "https://github.com/jblang/rc9918"
 Comment2 ""
@@ -162,7 +163,7 @@ $EndComp
 Text Label 5450 5650 0    60   ~ 0
 ~R~W
 $Comp
-L TMS9918:HM62256BLP-7 U8
+L TMS9918-rescue:HM62256BLP-7-TMS9918 U8
 U 1 1 5A77A9F9
 P 9000 2350
 F 0 "U8" H 8700 3250 50  0000 C CNN
@@ -323,7 +324,7 @@ F 3 "" H 2800 3650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L TMS9918:TMS9918A U3
+L TMS9918-rescue:TMS9918A-TMS9918 U3
 U 1 1 5A78610F
 P 3950 2450
 F 0 "U3" H 3450 3850 60  0000 C CNN

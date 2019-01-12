@@ -1,20 +1,26 @@
 # TMS9918A Video Card for RC2014
 
-This is a TMS9918A-based video card for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, and Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis. The chip's designer claims it also influenced the architecture of the PPU in the Nintendo Entertainment System. 
+This is a TMS9918A-based video card for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, and Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis.
 
 This board is based on a [circuit](https://retrobrewcomputers.org/n8vem-pbwiki-archive/0/35845334/48860720/33053543/SRAM%20Replacement%20for%20TMS99x8%20VRAM.pdf) described by Tom LeMense for interfacing the TMS9918A with SRAM.  I started with his schematics, added port address decoding and laid out the circuit on an RC2014 module.
 
-This board can be configured to use the same ports as the MSX, so it's possible to run some MSX software on it unmodified. I have successfully gotten the Bold demo to run. The graphics from other programs should work as well, but other parts of the MSX, such as I/O may need additional hardware to work.
+This board can be configured to use the same ports as the MSX or ColecoVision, so it's possible to run some software from these systems, such as [ColecoVision games](https://hackaday.io/project/159057-game-boards-for-rc2014/log/156298-running-colecovision-games) and [MSX-BASIC](https://hackaday.io/project/158338-z80ctrl/log/157750-msx-basic-on-rc2014).
 
-The board has been built and tested using the gerber files generated from this project. The gerber files are available for direct download below, and the project has also been shared on OSH Park.
+## Assembly Instructions
 
-[Ready-to-Assemble](https://www.tindie.com/products/mfkamprath/tms9918a-video-module-for-rc2014/) kits are available on Tindie.  These are sold by Michael Kamprath with my permission.  However, I offer no warranty or guarantee of support.
+[Ready-to-Assemble Kits](https://www.tindie.com/products/mfkamprath/tms9918a-video-module-for-rc2014/) are available on Tindie.  These are sold by Michael Kamprath with my permission.  However, I offer no warranty or guarantee of support.
 
-## Bill of Materials 
+[Gerbers](https://cdn.hackaday.io/files/1590576805094688/TMS9918_rev4_gerbers.zip) for the PCB are available. I highly recommend [JLCPCB](https://jlcpcb.com/) for PCB fabrication. Alternatively, boards can be ordered from the shared project on [OSH Park](https://oshpark.com/shared_projects/mwSt2s6V).
+
+Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materials below for assembly guidance.
+
+![TMS9918A PCB](board.jpg)
+
+### Bill of Materials
 
 | Component | Description |
 |---|---|
-| PCB | rc9918 PCB ([OSH Park](https://oshpark.com/projects/KfwMvnwH) - [Gerbers](https://cdn.hackaday.io/files/1590576805094688/rc9918_rev3.zip)) |
+| PCB | rc9918 PCB |
 | U1 | 74HCT32 quad OR gate |
 | U2 | 74HCT138 3-8 line decoder |
 | U3 | TMS9918A video chip |
@@ -87,9 +93,9 @@ The optional `J7` header has pins (from left to right) for RC2014 CLK1 (REV4 onl
 
 ## Other Boards
 
-- [SN76489](https://github.com/jblang/SN76489): my SN76489 sound card for the RC2014
-- [GameController](https://github.com/jblang/GameController): my Atari/Coleco/Sega controller interface
-- [z80ctrl](https://github.com/jblang/z80ctrl): my RC2014 bus monitor board.
+- [SN76489 Sound Card](https://github.com/jblang/SN76489): my SN76489 sound card for the RC2014
+- [Game Controller Card](https://github.com/jblang/GameController): my Atari/Coleco/Sega-compatible controller interface for the RC2014
+- [z80ctrl](https://github.com/jblang/z80ctrl): my AVR-based bus monitor and bootloader board for the RC2014
 
 ## License
 
