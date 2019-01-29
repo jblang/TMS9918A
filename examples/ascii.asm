@@ -42,7 +42,7 @@ start:
         ld      c, 6                            ; start at line 6
         push    af                              ; save current character
 nextline:
-        ld      a, ((40-linelen)/2)             ; center text
+        ld      a, 0+(40-linelen)/2             ; center text
         ld      e, c                            ; on current line
         call    tmstextpos
         pop     af                              ; get current character
