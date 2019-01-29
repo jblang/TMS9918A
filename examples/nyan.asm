@@ -1,7 +1,6 @@
 ; Nyan Cat for RC2014 with TMS9918 and YM2149
 ; Hand-written assembly by J.B. Langston
 ; Images and music from Nyan Cat for MSX: https://www.msx.org/news/en/nyan-cat-msx
-; Assembles with sjasm
 
                 org $0100
 
@@ -13,10 +12,12 @@ framecount:     equ 12                  ; number of frames in animation
         jp      start
 
 music:
+                ; change incbin to binary for z88dk
                 incbin  "nyan/music.bin"     ; music data
 
 ; Change included binary for different cat
 animation:
+                ; change incbin to binary for z88dk
                 incbin  "nyan/nyan.bin"      ; The Classic
                 ;incbin "nyan/nyands.bin"    ; Skrillex?
                 ;incbin "nyan/nyanfi.bin"    ; Finland
@@ -66,9 +67,9 @@ nmisetup:
 
 ; interrupt handler: rotate animation frames
 inthandler:
-        in      a, (tmsreg)             ; clear interrupt flag
         call    PLY_Play                ; play one piece of song
         call    drawframe               ; draw next frame, if it's time
+        in      a, (tmsreg)             ; clear interrupt flag
         ei
         reti
 
