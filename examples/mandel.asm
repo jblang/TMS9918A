@@ -1,11 +1,8 @@
-;  Z80 Mandelbrot with output to TMS9918 video chip
+; Z80 Mandelbrot with output to TMS9918 video chip
 ;
 ; Fixed point Mandelbrot routine from https://rosettacode.org/wiki/Mandelbrot_set#Z80_Assembly
 ;
 ; Adapted to TMS9918 by J.B. Langston
-; Latest version at https://gist.github.com/jblang/2fe54044a9a71b7fd17d8f8d4c123fb5
-;
-; Assemble with sjasm
 
 ramtop:         equ     $ffff
 bdos:           equ     $0005
@@ -17,39 +14,37 @@ bdos:           equ     $0005
 
                 include "tms.asm"               ; TMS subroutines
 
-oldstack:
-        dw      0
-
 ; mandelbrot constants
-scale           equ     256                     ; Do NOT change this - the
+scale:          equ     256                     ; Do NOT change this - the
                                                 ; arithmetic routines rely on
                                                 ; this scaling factor! :-)
 
-divergent       equ     scale * 4
+divergent:      equ     scale * 4
 
-iteration_max   equ     14                      ; How many iterations
-x_start         equ     scale * -2              ; Minimum x-coordinate
-x_end           equ     scale - 1               ; Maximum x-coordinate
-x_step          equ     3                       ; x-coordinate step-width
-y_start         equ     -9 * (scale / 8)        ; Minimum y-coordinate
-y_end           equ     9 * (scale / 8) - 1     ; Maximum y-coordinate
-y_step          equ     3                       ; y-coordinate step-width
+iteration_max:  equ     14                      ; How many iterations
+x_start:        equ     -2 * scale              ; Minimum x-coordinate
+x_end:          equ     scale - 1               ; Maximum x-coordinate
+x_step:         equ     3                       ; x-coordinate step-width
+y_start:        equ     -9 * (scale / 8)        ; Minimum y-coordinate
+y_end:          equ     9 * (scale / 8) - 1     ; Maximum y-coordinate
+y_step:         equ     3                       ; y-coordinate step-width
 
 ; mandelbrot variables
-x               defw    0                       ; x-coordinate
-y               defw    0                       ; y-coordinate
-z_0             defw    0
-z_1             defw    0
-scratch_0       defw    0
-z_0_square_high defw    0
-z_0_square_low  defw    0
-z_1_square_high defw    0
-z_1_square_low  defw    0
+oldstack:        defw    0
+x:               defw    0                       ; x-coordinate
+y:               defw    0                       ; y-coordinate
+z_0:             defw    0
+z_1:             defw    0
+scratch_0:       defw    0
+z_0_square_high: defw    0
+z_0_square_low:  defw    0
+z_1_square_high: defw    0
+z_1_square_low:  defw    0
 
 ; mandelbrot entry point
-mandelbrot
+mandelbrot:
                 call    tmsbitmap
-                ld      a, 0                    ; clear pixel counters
+                xor     a                     ; clear pixel counters
                 ld      (xypos), a
                 ld      (xypos+1), a
                 ld      (bitindex), a
@@ -58,7 +53,7 @@ mandelbrot
 
 ; for (y = <initial_value> ; y <= y_end; y += y_step)
 ; {
-outer_loop      ld      hl, y_end               ; Is y <= y_end?
+outer_loop:     ld      hl, y_end               ; Is y <= y_end?
                 ld      de, (y)
                 and     a                       ; Clear carry
                 sbc     hl, de                  ; Perform the comparison
@@ -68,7 +63,7 @@ outer_loop      ld      hl, y_end               ; Is y <= y_end?
 ;    {
                 ld      hl, x_start             ; x = x_start
                 ld      (x), hl
-inner_loop      ld      hl, x_end               ; Is x <= x_end?
+inner_loop:     ld      hl, x_end               ; Is x <= x_end?
                 ld      de, (x)
                 and     a
                 sbc     hl, de
@@ -83,7 +78,7 @@ inner_loop      ld      hl, x_end               ; Is x <= x_end?
 ;      {
                 ld      a, iteration_max
                 ld      b, a
-iteration_loop  push    bc                      ; iteration -> stack
+iteration_loop: push    bc                      ; iteration -> stack
 ;        z2 = (z_0 * z_0 - z_1 * z_1) / SCALE;
                 ld      de, (z_1)               ; Compute DE HL = z_1 * z_1
                 ld      b, d
@@ -159,10 +154,10 @@ iteration_loop  push    bc                      ; iteration -> stack
                 jr      iteration_end           ; Exit loop
 
 ;        iteration++;
-iteration_dec   pop     bc                      ; Get iteration counter
+iteration_dec:  pop     bc                      ; Get iteration counter
                 djnz    iteration_loop          ; We might fall through!
 ;      }
-iteration_end
+iteration_end:
 ;      printf("%c", display[iteration % 7]);
                 inc     b                       ; increment iteration count to get color
                 call    drawpixel               ; plot it
@@ -175,7 +170,7 @@ iteration_end
                 jp      inner_loop
 ;    }
 ;    printf("\n");
-inner_loop_end
+inner_loop_end:
 
                 ld      de, y_step              ; y += y_step
                 ld      hl, (y)
@@ -185,10 +180,11 @@ inner_loop_end
                 jp      outer_loop
 ; }
 
-mandel_end      
+mandel_end:
         ld	sp,(oldstack)	                ; put stack back to how we found it
-        ld	c,$0			        ; this is the CP/M proper exit call
-        jp	bdos
+        ;ld	c,$0			        ; this is the CP/M proper exit call
+        ;jp	bdos
+        halt
 
 ;
 ;   Compute DEHL = BC * DE (signed): This routine is not too clever but it
@@ -197,7 +193,7 @@ mandel_end
 ; signs of the operands which are negated if necessary. Then the unsigned
 ; multiplication takes place, followed by negating the result if necessary.
 ;
-mul_16          xor     a                       ; Clear carry and A (-> +)
+mul_16:         xor     a                       ; Clear carry and A (-> +)
                 bit     7, b                    ; Is BC negative?
                 jr      z, bc_positive          ; No
                 sub     c                       ; A is still zero, complement
@@ -206,7 +202,7 @@ mul_16          xor     a                       ; Clear carry and A (-> +)
                 sbc     a, b
                 ld      b, a
                 scf                             ; Set carry (-> -)
-bc_positive     bit     7, D                    ; Is DE negative?
+bc_positive:    bit     7, D                    ; Is DE negative?
                 jr      z, de_positive          ; No
                 push    af                      ; Remember carry for later!
                 xor     a
@@ -217,18 +213,18 @@ bc_positive     bit     7, D                    ; Is DE negative?
                 ld      d, a
                 pop     af                      ; Restore carry for complement
                 ccf                             ; Complement Carry (-> +/-?)
-de_positive     push    af                      ; Remember state of carry
+de_positive:    push    af                      ; Remember state of carry
                 and     a                       ; Start multiplication
                 sbc     hl, hl
                 ld      a, 16                   ; 16 rounds
-mul_16_loop     add     hl, hl
+mul_16_loop:    add     hl, hl
                 rl      e
                 rl      d
                 jr      nc, mul_16_exit
                 add     hl, bc
                 jr      nc, mul_16_exit
                 inc     de
-mul_16_exit     dec     a
+mul_16_exit:    dec     a
                 jr      nz, mul_16_loop
                 pop     af                      ; Restore carry from beginning
                 ret     nc                      ; No sign inversion necessary
@@ -247,22 +243,22 @@ mul_16_exit     dec     a
                 ret
 
 ; working area for 8 pixels at a time
-primary         defb 0                          ; primary color
-secondary       defb 0                          ; secondary color
-pattern         defb 0                          ; color bit pattern
-bitindex        defb 0                          ; current bit within byte
-xypos           defw 0                          ; current x, y position on the screen
+primary:        defb 0                          ; primary color
+secondary:      defb 0                          ; secondary color
+pattern:        defb 0                          ; color bit pattern
+bitindex:       defb 0                          ; current bit within byte
+xypos:          defw 0                          ; current x, y position on the screen
 
 ; plot a pixel to TMS9918 screen
 ;       B = color of pixel
-drawpixel       
+drawpixel:       
                 ld      a, (bitindex)           ; check whether this is the first bit of a byte
                 or      a
                 ld      a, b                    ; load the current color in a
                 jr      nz, comparecolor        ; for subsequent bits, proceed to comparison
                 ld      (primary), a            ; for first bit, set both colors to current color
                 ld      (secondary), a
-comparecolor        
+comparecolor:        
                 ld      hl, primary             ; compare the current color to primary color
                 cp      (hl)
                 scf              
@@ -272,12 +268,12 @@ comparecolor
                 ld      (secondary), a          ; otherwise, set secondary color to current color
                 or      a                       ; and clear the pattern bit
                 jr      setbit
-swapblack
+swapblack:
                 ld      (primary), a            ; set the primary color to black
-                ld      a, 0                    ; clear all previous pattern bits
+                xor     a                       ; clear all previous pattern bits
                 ld      (pattern), a
                 scf                             ; and set the current pattern bit
-setbit          
+setbit:          
                 ld      hl, pattern             ; pull the current pattern bit into the byte
                 rl      (hl)
 
@@ -285,8 +281,7 @@ setbit
                 inc     a                       ; increment the bit index
                 and     7                       ; mask it to a maximum of 7
                 ld      (bitindex), a           ; save it back in memory
-                cp      0                       ; if this wasn't the last bit, we're done
-                ret     nz
+                ret     nz                      ; if this wasn't the last bit, we're done
 
                 ld      de, (xypos)             ; calculate address for current x, y position
                 ld      a, d                    ; h = (y / 8)
@@ -320,7 +315,7 @@ setbit
                 add     a, a
                 add     a, a
                 ld      hl, secondary           ; load secondary color into lower 4 bits
-                or      a, (hl)
+                or      (hl)
                 out     (tmsram), a             ; send to TMS
 
                 ld      hl, (xypos)             ; increase next x/y position by 8 pixels

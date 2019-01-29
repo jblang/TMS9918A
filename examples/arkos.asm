@@ -1,7 +1,7 @@
 
 ;*** Start of Arkos Tracker Player
 
-	;org #1000
+	;org $1000
 	;nolist
 
 ;	Arkos Tracker Player V1.01 - CPC & MSX version.
@@ -14,6 +14,7 @@
 ;       - Only the CPC version has been stabilised (the other replay routs haven't).
 ;       - The sound effect player hasn't been stabilised either (anyone cares?).
 
+; Updated 1/28/2019 by J.B. Langston for compatibility with z80asm
 
 ;	V1.02 additions
 ;	---------------
@@ -124,7 +125,7 @@
 ;	H = Volume (0...F)
 ;	E = Note (0...143)
 ;	D = Speed (0 = As original, 1...255 = new Speed (1 is the fastest))
-;	BC = Inverted Pitch (-#FFFF -> FFFF). 0 is no pitch. The higher the pitch, the lower the sound.
+;	BC = Inverted Pitch (-$FFFF -> FFFF). 0 is no pitch. The higher the pitch, the lower the sound.
 ;	call PLY_SFX_Play
 ;	To stop a sound effect =
 ;	ld e,No Channel (0,1,2)
@@ -144,26 +145,26 @@
 
 ;	Any question, complaint, a need to reward ? Write to contact@julien-nevo.com
 
-AY_AddrPort equ #d8
-AY_DataPort equ #d0
+AY_AddrPort:	equ $d8
+AY_DataPort:	equ $d0
 
-PLY_UseCPCMachine equ 0		;Indicates what frequency table and output code to use. 1 to use it.
-PLY_UseMSXMachine equ 1
+PLY_UseCPCMachine: equ 0		;Indicates what frequency table and output code to use. 1 to use it.
+PLY_UseMSXMachine: equ 1
 
 
-PLY_UseSoundEffects equ 0	;Set to 1 if you want to use Sound Effects in your player. Both CPU and memory consuming.
-PLY_UseFades equ 0		;Set to 1 to allow fades in/out. A little CPU and memory consuming.
+PLY_UseSoundEffects: equ 0	;Set to 1 if you want to use Sound Effects in your player. Both CPU and memory consuming.
+PLY_UseFades: equ 0		;Set to 1 to allow fades in/out. A little CPU and memory consuming.
 				;PLY_SetFadeValue becomes available.
 
 
-PLY_SystemFriendly equ 0	;Set to 1 if you want to save the Registers used by AMSDOS (AF', BC', IX, IY)
+PLY_SystemFriendly: equ 0	;Set to 1 if you want to save the Registers used by AMSDOS (AF', BC', IX, IY)
 				;(which allows you to call this player in BASIC)
 				;As this option is system-friendly, it cuts the interruption, and restore them ONLY IF NECESSARY.
-PLY_UseFirmwareInterruptions equ 0 ;Set to 1 to use a Player under interruption. Only works on CPC, as it uses the CPC Firmware.
+PLY_UseFirmwareInterruptions: equ 0 ;Set to 1 to use a Player under interruption. Only works on CPC, as it uses the CPC Firmware.
 				;WARNING, PLY_SystemFriendly must be set to 1 if you use the Player under interruption !
-				;SECOND WARNING, make sure the player is above #3fff, else it won't be played (system limitation).
+				;SECOND WARNING, make sure the player is above $3fff, else it won't be played (system limitation).
 
-PLY_UseBasicSoundEffectInterface equ 0	;Set to 1 if you want a little interface to be added if you are a BASIC programmer who wants
+PLY_UseBasicSoundEffectInterface: equ 0	;Set to 1 if you want a little interface to be added if you are a BASIC programmer who wants
 					;to use sound effects. Of course, you must also set PLY_UseSoundEffects to 1.
 
 
@@ -172,14 +173,14 @@ PLY_UseBasicSoundEffectInterface equ 0	;Set to 1 if you want a little interface 
 
 
 
-PLY_RetrigValue	equ #fe		;Value used to trigger the Retrig of Register 13. #FE corresponds to CP xx. Do not change it !
+PLY_RetrigValue:	equ $fe		;Value used to trigger the Retrig of Register 13. $FE corresponds to CP xx. Do not change it !
 
 
 
 
 
 
-Player
+Player:
 
 	if PLY_UseFirmwareInterruptions
 
@@ -202,42 +203,42 @@ Player
 
 
 
-PLY_InterruptionOn call PLY_Init
+PLY_InterruptionOn: call PLY_Init
 	ld hl,PLY_Interruption_Convert
-PLY_ReplayFrequency ld de,0
+PLY_ReplayFrequency: ld de,0
 	ld a,d
 	ld (PLY_Interruption_Cpt + 1),a
 	add hl,de
 	ld a,(hl)	;Chope nbinter wait
 	ld (PLY_Interruption_Value + 1),a
 
-PLY_InterruptionContinue
+PLY_InterruptionContinue:
 	ld hl,PLY_Interruption_ControlBloc
 	ld bc,%10000001*256+0
 	ld de,PLY_Interruption_Play
-	jp #bce0
-PLY_InterruptionOff ld hl,PLY_Interruption_ControlBloc
-	call #bce6
+	jp $bce0
+PLY_InterruptionOff: ld hl,PLY_Interruption_ControlBloc
+	call $bce6
 	jp PLY_Stop
 
-PLY_Interruption_ControlBloc defs 10,0	;Buffer used by the OS.
+PLY_Interruption_ControlBloc: defs 10,0	;Buffer used by the OS.
 
 ;Code run by the OS on each interruption.
-PLY_Interruption_Play di
+PLY_Interruption_Play: di
 
-PLY_Interruption_Cpt ld a,0		;Run the player only if it has to, according to the music frequency.
-PLY_Interruption_Value cp 5
+PLY_Interruption_Cpt: ld a,0		;Run the player only if it has to, according to the music frequency.
+PLY_Interruption_Value: cp 5
 	jr z,PLY_Interruption_NoWait
 	inc a
 	ld (PLY_Interruption_Cpt + 1),a
 	ret
 
-PLY_Interruption_NoWait xor a
+PLY_Interruption_NoWait: xor a
 	ld (PLY_Interruption_Cpt + 1),a
 	jp PLY_Play
 
 ;Table to convert PLY_ReplayFrequency into a Frequency value for the AMSDOS.
-PLY_Interruption_Convert defb 17, 11, 5, 2, 1, 0
+PLY_Interruption_Convert: defb 17, 11, 5, 2, 1, 0
 
 
 	
@@ -273,10 +274,10 @@ PLY_Interruption_Convert defb 17, 11, 5, 2, 1, 0
 
 
 
-PLY_Digidrum db 0						;Read here to know if a Digidrum has been played (0=no).
+PLY_Digidrum: defb 0						;Read here to know if a Digidrum has been played (0=no).
 
 
-PLY_Play
+PLY_Play:
 
 	if PLY_SystemFriendly
 	call PLY_DisableInterruptions
@@ -293,43 +294,43 @@ PLY_Play
 
 
 ;Manage Speed. If Speed counter is over, we have to read the Pattern further.
-PLY_SpeedCpt ld a,1
+PLY_SpeedCpt: ld a,1
 	dec a
 	jp z,PLY_SpeedCpt_Z             ;jp nz,PLY_SpeedEnd
-		;ds 773-3, 0
+		;defs 773-3, 0
 		ld b,192
 		djnz $
 		nop
 		jp PLY_SpeedEnd
-PLY_SpeedCpt_Z
+PLY_SpeedCpt_Z:
 
 
 	;Moving forward in the Pattern. Test if it is not over.
 
-PLY_HeightCpt ld a,1
+PLY_HeightCpt: ld a,1
 	dec a
 	jp z,PLY_HeightEnd_Z		;jr nz,PLY_HeightEnd
-		;ds 161-3, 0
+		;defs 161-3, 0
 		ld b,39
 		djnz $
 		nop
 		jp PLY_HeightEnd
 ;Pattern Over. We have to read the Linker.
-PLY_HeightEnd_Z
+PLY_HeightEnd_Z:
 
 
 
 	;Get the Transpositions, if they have changed, or detect the Song Ending !
-PLY_Linker_PT ld hl,0
+PLY_Linker_PT: ld hl,0
 	ld a,(hl)
 	inc hl
 	rra
 	jp c,PLY_SongNotOver_C		;jr nc,PLY_SongNotOver
-		;ds 12-3, 0
+		;defs 12-3, 0
 		ld b,2
 		djnz $
 		jr PLY_SongNotOver
-PLY_SongNotOver_C
+PLY_SongNotOver_C:
 	;Song over ! We read the address of the Loop point.
 	ld a,(hl)
 	inc hl
@@ -338,31 +339,31 @@ PLY_SongNotOver_C
 	ld a,(hl)			;We know the Song won't restart now, so we can skip the first bit.
 	inc hl
 	rra
-PLY_SongNotOver
+PLY_SongNotOver:
 	rra
 	jp c,PLY_NoNewTransposition1_C	;jr nc,PLY_NoNewTransposition1
-		ds 8-3, 0
+		defs 8-3, 0
 		jr PLY_NoNewTransposition1
-PLY_NoNewTransposition1_C
+PLY_NoNewTransposition1_C:
 	ld de,PLY_Transposition1 + 1
 	ldi
-PLY_NoNewTransposition1
+PLY_NoNewTransposition1:
 	rra
 	jp c,PLY_NoNewTransposition2_C	;jr nc,PLY_NoNewTransposition2
-		ds 8-3, 0
+		defs 8-3, 0
 		jr PLY_NoNewTransposition2
-PLY_NoNewTransposition2_C
+PLY_NoNewTransposition2_C:
 	ld de,PLY_Transposition2 + 1
 	ldi
-PLY_NoNewTransposition2
+PLY_NoNewTransposition2:
 	rra
 	jp c,PLY_NoNewTransposition3_C	;jr nc,PLY_NoNewTransposition3
-		ds 8-3, 0
+		defs 8-3, 0
 		jr PLY_NoNewTransposition3
-PLY_NoNewTransposition3_C
+PLY_NoNewTransposition3_C:
 	ld de,PLY_Transposition3 + 1
 	ldi
-PLY_NoNewTransposition3
+PLY_NoNewTransposition3:
 
 	;Get the Tracks addresses.
 	ld de,PLY_Track1_PT + 1
@@ -378,30 +379,30 @@ PLY_NoNewTransposition3
 	;Get the Special Track address, if it has changed.
 	rra
 	jp c,PLY_NoNewHeight_C	;jr nc,PLY_NoNewHeight
-		ds 8-3, 0
+		defs 8-3, 0
 		jr PLY_NoNewHeight
-PLY_NoNewHeight_C 
+PLY_NoNewHeight_C: 
 	ld de,PLY_Height + 1
 	ldi
-PLY_NoNewHeight
+PLY_NoNewHeight:
 
 	rra
 	jp c,PLY_NoNewSpecialTrack_C	;jr nc,PLY_NoNewSpecialTrack
-		;ds 14-3, 0
+		;defs 14-3, 0
 		ld b,2
 		djnz $
-		ds 2,0
+		defs 2,0
 		jr PLY_NoNewSpecialTrack
-PLY_NoNewSpecialTrack_C
+PLY_NoNewSpecialTrack_C:
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
 	inc hl
 	ld (PLY_SaveSpecialTrack + 1),de
 
-PLY_NoNewSpecialTrack
+PLY_NoNewSpecialTrack:
 	ld (PLY_Linker_PT + 1),hl
-PLY_SaveSpecialTrack ld hl,0
+PLY_SaveSpecialTrack: ld hl,0
 	ld (PLY_SpecialTrack_PT + 1),hl
 
 	;Reset the SpecialTrack/Tracks line counter.
@@ -413,8 +414,8 @@ PLY_SaveSpecialTrack ld hl,0
 	ld (PLY_Track3_WaitCounter + 1),a
 
 
-PLY_Height ld a,1
-PLY_HeightEnd
+PLY_Height: ld a,1
+PLY_HeightEnd:
 	ld (PLY_HeightCpt + 1),a
 
 
@@ -424,54 +425,54 @@ PLY_HeightEnd
 ;Read the Special Track/Tracks.
 ;------------------------------
 
-PLY_SpecialTrack_WaitCounter ld a,1
+PLY_SpecialTrack_WaitCounter: ld a,1
 	dec a
 	jp z,PLY_SpecialTrack_Wait_Z	;jr nz,PLY_SpecialTrack_Wait
-		;ds 38-3,0
+		;defs 38-3,0
 		ld b,8
 		djnz $
-		ds 2,0
+		defs 2,0
 		jp PLY_SpecialTrack_Wait
-PLY_SpecialTrack_Wait_Z
+PLY_SpecialTrack_Wait_Z:
 
-PLY_SpecialTrack_PT ld hl,0
+PLY_SpecialTrack_PT: ld hl,0
 	ld a,(hl)
 	inc hl
 	srl a				;Data (1) or Wait (0) ?
 	jp c,PLY_SpecialTrack_NewWait_C ;jr nc,PLY_SpecialTrack_NewWait	;If Wait, A contains the Wait value.
-		;ds 18,0
+		;defs 18,0
 		ld b,4
 		djnz $
 		nop
 		jr PLY_SpecialTrack_NewWait
-PLY_SpecialTrack_NewWait_C
+PLY_SpecialTrack_NewWait_C:
 	;Data. Effect Type ?
 	srl a				;Speed (0) or Digidrum (1) ?
 	;First, we don't test the Effect Type, but only the Escape Code (=0)
 	jp z,PLY_SpecialTrack_NoEscapeCode_Z	;jr nz,PLY_SpecialTrack_NoEscapeCode
-		ds 1,0
+		defs 1,0
 		jr PLY_SpecialTrack_NoEscapeCode
-PLY_SpecialTrack_NoEscapeCode_Z
+PLY_SpecialTrack_NoEscapeCode_Z:
 	ld a,(hl)
 	inc hl
 
-PLY_SpecialTrack_NoEscapeCode
+PLY_SpecialTrack_NoEscapeCode:
 	;Now, we test the Effect type, since the Carry didn't change.
 	jp c,PLY_SpecialTrack_Speed_C	;jr nc,PLY_SpecialTrack_Speed
-		;ds 0,0
+		;defs 0,0
 		jr PLY_SpecialTrack_Speed
 	jr nc,PLY_SpecialTrack_Speed
-PLY_SpecialTrack_Speed_C
+PLY_SpecialTrack_Speed_C:
 	ld (PLY_Digidrum),a
 	jr PLY_PT_SpecialTrack_EndData
 
-PLY_SpecialTrack_Speed
+PLY_SpecialTrack_Speed:
 	ld (PLY_Speed + 1),a
-PLY_PT_SpecialTrack_EndData
+PLY_PT_SpecialTrack_EndData:
 	ld a,1
-PLY_SpecialTrack_NewWait
+PLY_SpecialTrack_NewWait:
 	ld (PLY_SpecialTrack_PT + 1),hl
-PLY_SpecialTrack_Wait
+PLY_SpecialTrack_Wait:
 	ld (PLY_SpecialTrack_WaitCounter + 1),a
 
 
@@ -482,26 +483,26 @@ PLY_SpecialTrack_Wait
 ;Read the Track 1.
 ;-----------------
 ;Store the parameters, because the player below is called every frame, but the Read Track isn't.
-PLY_Track1_WaitCounter ld a,1
+PLY_Track1_WaitCounter: ld a,1
 	dec a
 	jp z,PLY_Track1_NewInstrument_SetWait_Z ;jr nz,PLY_Track1_NewInstrument_SetWait
-		;ds 174 - 3,0
+		;defs 174 - 3,0
 		ld b,42
 		djnz $
-		ds 2,0
+		defs 2,0
 		jp PLY_Track1_NewInstrument_SetWait
-PLY_Track1_NewInstrument_SetWait_Z
+PLY_Track1_NewInstrument_SetWait_Z:
 
 
-PLY_Track1_PT ld hl,0
+PLY_Track1_PT: ld hl,0
 	call PLY_ReadTrack 
 	ld (PLY_Track1_PT + 1),hl
 	jp nc,PLY_Track1_NewInstrument_SetWait_C	;jr c,PLY_Track1_NewInstrument_SetWait
-		;ds 100-3,0
+		;defs 100-3,0
 		ld b,24
 		djnz $
 		jp PLY_Track1_NewInstrument_SetWait
-PLY_Track1_NewInstrument_SetWait_C
+PLY_Track1_NewInstrument_SetWait_C:
 
 
 	;No Wait command. Can be a Note and/or Effects.
@@ -509,32 +510,32 @@ PLY_Track1_NewInstrument_SetWait_C
 
 	rra			;Volume ? If bit 4 was 1, then volume exists on b3-b0
 	jp c,PLY_Track1_SameVolume_C	;jr nc,PLY_Track1_SameVolume
-		ds 6-3,0
+		defs 6-3,0
 		jr PLY_Track1_SameVolume
-PLY_Track1_SameVolume_C
+PLY_Track1_SameVolume_C:
 	and %1111
 	ld (PLY_Track1_Volume),a
-PLY_Track1_SameVolume
+PLY_Track1_SameVolume:
 
 	rl d				;New Pitch ?
 	jp c,PLY_Track1_NoNewPitch_C	;jr nc,PLY_Track1_NoNewPitch
-		ds 6-3,0
+		defs 6-3,0
 	jr PLY_Track1_NoNewPitch
-PLY_Track1_NoNewPitch_C
+PLY_Track1_NoNewPitch_C:
 	ld (PLY_Track1_PitchAdd + 1),ix
-PLY_Track1_NoNewPitch
+PLY_Track1_NoNewPitch:
 
 	rl d				;Note ? If no Note, we don't have to test if a new Instrument is here.
 	jp c,PLY_Track1_NoNoteGiven_C	;jr nc,PLY_Track1_NoNoteGiven
-		;ds 71-3,0
+		;defs 71-3,0
 		ld b,16                          		;We can use B because no instrument is here.
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_Track1_NoNoteGiven
 
-PLY_Track1_NoNoteGiven_C
+PLY_Track1_NoNoteGiven_C:
 	ld a,e
-PLY_Transposition1 add a,0		;Transpose Note according to the Transposition in the Linker.
+PLY_Transposition1: add a,0		;Transpose Note according to the Transposition in the Linker.
 	ld (PLY_Track1_Note),a
 
 	ld hl,0				;Reset the TrackPitch.
@@ -542,19 +543,19 @@ PLY_Transposition1 add a,0		;Transpose Note according to the Transposition in th
 
 	rl d				;New Instrument ?
 	jp c,PLY_Track1_NewInstrument	;jr c,PLY_Track1_NewInstrument
-PLY_Track1_SavePTInstrument ld hl,0	;Same Instrument. We recover its address to restart it.
+PLY_Track1_SavePTInstrument: ld hl,0	;Same Instrument. We recover its address to restart it.
 	ld a,(PLY_Track1_InstrumentSpeed + 1)		;Reset the Instrument Speed Counter. Never seemed useful...
 	ld (PLY_Track1_InstrumentSpeedCpt + 1),a
-	;	ds 46 - 14,0
+	;	defs 46 - 14,0
 		ld b,7
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_Track1_InstrumentResetPT
 
-PLY_Track1_NewInstrument		;New Instrument. We have to get its new address, and Speed.
+PLY_Track1_NewInstrument:		;New Instrument. We have to get its new address, and Speed.
 	ld l,b				;H is already set to 0 before.
 	add hl,hl
-PLY_Track1_InstrumentsTablePT ld bc,0
+PLY_Track1_InstrumentsTablePT: ld bc,0
 	add hl,bc
 	ld a,(hl)			;Get Instrument address.
 	inc hl
@@ -567,26 +568,26 @@ PLY_Track1_InstrumentsTablePT ld bc,0
 	ld a,(hl)
 	or a				;Get IsRetrig?. Code it only if different to 0, else next Instruments are going to overwrite it.
 	jp nz,PLY_Track1_NoRetrigSet_NZ	;jr z,PLY_Track1_NoRetrigSet
-		ds 1,0
+		defs 1,0
 		jr PLY_Track1_NoRetrigSet
-PLY_Track1_NoRetrigSet_NZ
+PLY_Track1_NoRetrigSet_NZ:
 	ld (PLY_PSGReg13_Retrig + 1),a
-PLY_Track1_NoRetrigSet
+PLY_Track1_NoRetrigSet:
 
 	inc hl
 
 	ld (PLY_Track1_SavePTInstrument + 1),hl		;When using the Instrument again, no need to give the Speed, it is skipped.
-PLY_Track1_InstrumentResetPT
+PLY_Track1_InstrumentResetPT:
 	ld (PLY_Track1_Instrument + 1),hl
 
 
 
 
 
-PLY_Track1_NoNoteGiven
+PLY_Track1_NoNoteGiven:
 
 	ld a,1
-PLY_Track1_NewInstrument_SetWait
+PLY_Track1_NewInstrument_SetWait:
 	ld (PLY_Track1_WaitCounter + 1),a
 
 
@@ -598,26 +599,26 @@ PLY_Track1_NewInstrument_SetWait
 ;Read the Track 2.
 ;-----------------
 ;Store the parameters, because the player below is called every frame, but the Read Track isn't.
-PLY_Track2_WaitCounter ld a,1
+PLY_Track2_WaitCounter: ld a,1
 	dec a
 	jp z,PLY_Track2_NewInstrument_SetWait_Z ;jr nz,PLY_Track2_NewInstrument_SetWait
-		;ds 174 - 3,0
+		;defs 174 - 3,0
 		ld b,42
 		djnz $
-		ds 2,0
+		defs 2,0
 		jp PLY_Track2_NewInstrument_SetWait
-PLY_Track2_NewInstrument_SetWait_Z
+PLY_Track2_NewInstrument_SetWait_Z:
 
 
-PLY_Track2_PT ld hl,0
+PLY_Track2_PT: ld hl,0
 	call PLY_ReadTrack
 	ld (PLY_Track2_PT + 1),hl
 	jp nc,PLY_Track2_NewInstrument_SetWait_C	;jr c,PLY_Track2_NewInstrument_SetWait
-		;ds 100-3,0
+		;defs 100-3,0
 		ld b,24
 		djnz $
 		jp PLY_Track2_NewInstrument_SetWait
-PLY_Track2_NewInstrument_SetWait_C
+PLY_Track2_NewInstrument_SetWait_C:
 
 
 	;No Wait command. Can be a Note and/or Effects.
@@ -625,32 +626,32 @@ PLY_Track2_NewInstrument_SetWait_C
 
 	rra			;Volume ? If bit 4 was 1, then volume exists on b3-b0
 	jp c,PLY_Track2_SameVolume_C	;jr nc,PLY_Track2_SameVolume
-		ds 6-3,0
+		defs 6-3,0
 		jr PLY_Track2_SameVolume
-PLY_Track2_SameVolume_C
+PLY_Track2_SameVolume_C:
 	and %1111
 	ld (PLY_Track2_Volume),a
-PLY_Track2_SameVolume
+PLY_Track2_SameVolume:
 
 	rl d				;New Pitch ?
 	jp c,PLY_Track2_NoNewPitch_C	;jr nc,PLY_Track2_NoNewPitch
-		ds 6-3,0
+		defs 6-3,0
 	jr PLY_Track2_NoNewPitch
-PLY_Track2_NoNewPitch_C
+PLY_Track2_NoNewPitch_C:
 	ld (PLY_Track2_PitchAdd + 1),ix
-PLY_Track2_NoNewPitch
+PLY_Track2_NoNewPitch:
 
 	rl d				;Note ? If no Note, we don't have to test if a new Instrument is here.
 	jp c,PLY_Track2_NoNoteGiven_C	;jr nc,PLY_Track2_NoNoteGiven
-		;ds 71-3,0
+		;defs 71-3,0
 		ld b,16                          		;We can use B because no instrument is here.
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_Track2_NoNoteGiven
 
-PLY_Track2_NoNoteGiven_C
+PLY_Track2_NoNoteGiven_C:
 	ld a,e
-PLY_Transposition2 add a,0		;Transpose Note according to the Transposition in the Linker.
+PLY_Transposition2: add a,0		;Transpose Note according to the Transposition in the Linker.
 	ld (PLY_Track2_Note),a
 
 	ld hl,0				;Reset the TrackPitch.
@@ -658,19 +659,19 @@ PLY_Transposition2 add a,0		;Transpose Note according to the Transposition in th
 
 	rl d				;New Instrument ?
 	jp c,PLY_Track2_NewInstrument	;jr c,PLY_Track2_NewInstrument
-PLY_Track2_SavePTInstrument ld hl,0	;Same Instrument. We recover its address to restart it.
+PLY_Track2_SavePTInstrument: ld hl,0	;Same Instrument. We recover its address to restart it.
 	ld a,(PLY_Track2_InstrumentSpeed + 1)		;Reset the Instrument Speed Counter. Never seemed useful...
 	ld (PLY_Track2_InstrumentSpeedCpt + 1),a
-	;	ds 46 - 14,0
+	;	defs 46 - 14,0
 		ld b,7
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_Track2_InstrumentResetPT
 
-PLY_Track2_NewInstrument		;New Instrument. We have to get its new address, and Speed.
+PLY_Track2_NewInstrument:		;New Instrument. We have to get its new address, and Speed.
 	ld l,b				;H is already set to 0 before.
 	add hl,hl
-PLY_Track2_InstrumentsTablePT ld bc,0
+PLY_Track2_InstrumentsTablePT: ld bc,0
 	add hl,bc
 	ld a,(hl)			;Get Instrument address.
 	inc hl
@@ -683,26 +684,26 @@ PLY_Track2_InstrumentsTablePT ld bc,0
 	ld a,(hl)
 	or a				;Get IsRetrig?. Code it only if different to 0, else next Instruments are going to overwrite it.
 	jp nz,PLY_Track2_NoRetrigSet_NZ	;jr z,PLY_Track2_NoRetrigSet
-		ds 1,0
+		defs 1,0
 		jr PLY_Track2_NoRetrigSet
-PLY_Track2_NoRetrigSet_NZ
+PLY_Track2_NoRetrigSet_NZ:
 	ld (PLY_PSGReg13_Retrig + 1),a
-PLY_Track2_NoRetrigSet
+PLY_Track2_NoRetrigSet:
 
 	inc hl
 
 	ld (PLY_Track2_SavePTInstrument + 1),hl		;When using the Instrument again, no need to give the Speed, it is skipped.
-PLY_Track2_InstrumentResetPT
+PLY_Track2_InstrumentResetPT:
 	ld (PLY_Track2_Instrument + 1),hl
 
 
 
 
 
-PLY_Track2_NoNoteGiven
+PLY_Track2_NoNoteGiven:
 
 	ld a,1
-PLY_Track2_NewInstrument_SetWait
+PLY_Track2_NewInstrument_SetWait:
 	ld (PLY_Track2_WaitCounter + 1),a
 
 
@@ -713,26 +714,26 @@ PLY_Track2_NewInstrument_SetWait
 ;Read the Track 3.
 ;-----------------
 ;Store the parameters, because the player below is called every frame, but the Read Track isn't.
-PLY_Track3_WaitCounter ld a,1
+PLY_Track3_WaitCounter: ld a,1
 	dec a
 	jp z,PLY_Track3_NewInstrument_SetWait_Z ;jr nz,PLY_Track3_NewInstrument_SetWait
-		;ds 174 - 3,0
+		;defs 174 - 3,0
 		ld b,42
 		djnz $
-		ds 2,0
+		defs 2,0
 		jp PLY_Track3_NewInstrument_SetWait
-PLY_Track3_NewInstrument_SetWait_Z
+PLY_Track3_NewInstrument_SetWait_Z:
 
 
-PLY_Track3_PT ld hl,0
+PLY_Track3_PT: ld hl,0
 	call PLY_ReadTrack
 	ld (PLY_Track3_PT + 1),hl
 	jp nc,PLY_Track3_NewInstrument_SetWait_C	;jr c,PLY_Track3_NewInstrument_SetWait
-		;ds 100-3,0
+		;defs 100-3,0
 		ld b,24
 		djnz $
 		jp PLY_Track3_NewInstrument_SetWait
-PLY_Track3_NewInstrument_SetWait_C
+PLY_Track3_NewInstrument_SetWait_C:
 
 
 	;No Wait command. Can be a Note and/or Effects.
@@ -740,32 +741,32 @@ PLY_Track3_NewInstrument_SetWait_C
 
 	rra			;Volume ? If bit 4 was 1, then volume exists on b3-b0
 	jp c,PLY_Track3_SameVolume_C	;jr nc,PLY_Track3_SameVolume
-		ds 6-3,0
+		defs 6-3,0
 		jr PLY_Track3_SameVolume
-PLY_Track3_SameVolume_C
+PLY_Track3_SameVolume_C:
 	and %1111
 	ld (PLY_Track3_Volume),a
-PLY_Track3_SameVolume
+PLY_Track3_SameVolume:
 
 	rl d				;New Pitch ?
 	jp c,PLY_Track3_NoNewPitch_C	;jr nc,PLY_Track3_NoNewPitch
-		ds 6-3,0
+		defs 6-3,0
 	jr PLY_Track3_NoNewPitch
-PLY_Track3_NoNewPitch_C
+PLY_Track3_NoNewPitch_C:
 	ld (PLY_Track3_PitchAdd + 1),ix
-PLY_Track3_NoNewPitch
+PLY_Track3_NoNewPitch:
 
 	rl d				;Note ? If no Note, we don't have to test if a new Instrument is here.
 	jp c,PLY_Track3_NoNoteGiven_C	;jr nc,PLY_Track3_NoNoteGiven
-		;ds 71-3,0
+		;defs 71-3,0
 		ld b,16                          		;We can use B because no instrument is here.
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_Track3_NoNoteGiven
 
-PLY_Track3_NoNoteGiven_C
+PLY_Track3_NoNoteGiven_C:
 	ld a,e
-PLY_Transposition3 add a,0		;Transpose Note according to the Transposition in the Linker.
+PLY_Transposition3: add a,0		;Transpose Note according to the Transposition in the Linker.
 	ld (PLY_Track3_Note),a
 
 	ld hl,0				;Reset the TrackPitch.
@@ -773,19 +774,19 @@ PLY_Transposition3 add a,0		;Transpose Note according to the Transposition in th
 
 	rl d				;New Instrument ?
 	jp c,PLY_Track3_NewInstrument	;jr c,PLY_Track3_NewInstrument
-PLY_Track3_SavePTInstrument ld hl,0	;Same Instrument. We recover its address to restart it.
+PLY_Track3_SavePTInstrument: ld hl,0	;Same Instrument. We recover its address to restart it.
 	ld a,(PLY_Track3_InstrumentSpeed + 1)		;Reset the Instrument Speed Counter. Never seemed useful...
 	ld (PLY_Track3_InstrumentSpeedCpt + 1),a
-	;	ds 46 - 14,0
+	;	defs 46 - 14,0
 		ld b,7
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_Track3_InstrumentResetPT
 
-PLY_Track3_NewInstrument		;New Instrument. We have to get its new address, and Speed.
+PLY_Track3_NewInstrument:		;New Instrument. We have to get its new address, and Speed.
 	ld l,b				;H is already set to 0 before.
 	add hl,hl
-PLY_Track3_InstrumentsTablePT ld bc,0
+PLY_Track3_InstrumentsTablePT: ld bc,0
 	add hl,bc
 	ld a,(hl)			;Get Instrument address.
 	inc hl
@@ -798,26 +799,26 @@ PLY_Track3_InstrumentsTablePT ld bc,0
 	ld a,(hl)
 	or a				;Get IsRetrig?. Code it only if different to 0, else next Instruments are going to overwrite it.
 	jp nz,PLY_Track3_NoRetrigSet_NZ	;jr z,PLY_Track3_NoRetrigSet
-		ds 1,0
+		defs 1,0
 		jr PLY_Track3_NoRetrigSet
-PLY_Track3_NoRetrigSet_NZ
+PLY_Track3_NoRetrigSet_NZ:
 	ld (PLY_PSGReg13_Retrig + 1),a
-PLY_Track3_NoRetrigSet
+PLY_Track3_NoRetrigSet:
 
 	inc hl
 
 	ld (PLY_Track3_SavePTInstrument + 1),hl		;When using the Instrument again, no need to give the Speed, it is skipped.
-PLY_Track3_InstrumentResetPT
+PLY_Track3_InstrumentResetPT:
 	ld (PLY_Track3_Instrument + 1),hl
 
 
 
 
 
-PLY_Track3_NoNoteGiven
+PLY_Track3_NoNoteGiven:
 
 	ld a,1
-PLY_Track3_NewInstrument_SetWait
+PLY_Track3_NewInstrument_SetWait:
 	ld (PLY_Track3_WaitCounter + 1),a
 
 
@@ -828,8 +829,8 @@ PLY_Track3_NewInstrument_SetWait
 
 
 
-PLY_Speed ld a,1
-PLY_SpeedEnd
+PLY_Speed: ld a,1
+PLY_SpeedEnd:
 	ld (PLY_SpeedCpt + 1),a
 
 
@@ -844,8 +845,8 @@ PLY_SpeedEnd
 ;This is needed because TrackPitch is involved in the Software Frequency/Hardware Frequency calculation, and is calculated every frame.
 
 	ld iy,PLY_PSGRegistersArray + 4
-PLY_Track3_Pitch ld hl,0
-PLY_Track3_PitchAdd ld de,0
+PLY_Track3_Pitch: ld hl,0
+PLY_Track3_PitchAdd: ld de,0
 	add hl,de
 	ld (PLY_Track3_Pitch + 1),hl
 	sra h				;Shift the Pitch to slow its speed.
@@ -855,20 +856,20 @@ PLY_Track3_PitchAdd ld de,0
 	ex de,hl
 	exx
 
-PLY_Track3_Volume equ $+2
-PLY_Track3_Note equ $+1
+PLY_Track3_Volume: equ $+2
+PLY_Track3_Note: equ $+1
 	ld de,0				;D=Inverted Volume E=Note
-PLY_Track3_Instrument ld hl,0
+PLY_Track3_Instrument: ld hl,0
 	call PLY_PlaySound
-PLY_Track3_InstrumentSpeedCpt ld a,1
+PLY_Track3_InstrumentSpeedCpt: ld a,1
 	dec a
 	jp z,PLY_Track3_PlayNoForward_Z	;jr nz,PLY_Track3_PlayNoForward
-		ds 7-3, 0
+		defs 7-3, 0
 		jr PLY_Track3_PlayNoForward
-PLY_Track3_PlayNoForward_Z
+PLY_Track3_PlayNoForward_Z:
 	ld (PLY_Track3_Instrument + 1),hl
-PLY_Track3_InstrumentSpeed ld a,6
-PLY_Track3_PlayNoForward
+PLY_Track3_InstrumentSpeed: ld a,6
+PLY_Track3_PlayNoForward:
 	ld (PLY_Track3_InstrumentSpeedCpt + 1),a
 
 
@@ -878,12 +879,12 @@ PLY_Track3_PlayNoForward
 	if PLY_UseSoundEffects
 
 
-PLY_SFX_Track3_Pitch ld de,0
+PLY_SFX_Track3_Pitch: ld de,0
 	exx
-PLY_SFX_Track3_Volume equ $+2
-PLY_SFX_Track3_Note equ $+1
+PLY_SFX_Track3_Volume: equ $+2
+PLY_SFX_Track3_Note: equ $+1
 	ld de,0				;D=Inverted Volume E=Note
-PLY_SFX_Track3_Instrument ld hl,0	;If 0, no sound effect.
+PLY_SFX_Track3_Instrument: ld hl,0	;If 0, no sound effect.
 	ld a,l
 	or h
 	jr z,PLY_SFX_Track3_End
@@ -896,16 +897,16 @@ PLY_SFX_Track3_Instrument ld hl,0	;If 0, no sound effect.
 	or h
 	jr z,PLY_SFX_Track3_Instrument_SetAddress
 
-PLY_SFX_Track3_InstrumentSpeedCpt ld a,1
+PLY_SFX_Track3_InstrumentSpeedCpt: ld a,1
 	dec a
 	jr nz,PLY_SFX_Track3_PlayNoForward
-PLY_SFX_Track3_Instrument_SetAddress
+PLY_SFX_Track3_Instrument_SetAddress:
 	ld (PLY_SFX_Track3_Instrument + 1),hl
-PLY_SFX_Track3_InstrumentSpeed ld a,6
-PLY_SFX_Track3_PlayNoForward
+PLY_SFX_Track3_InstrumentSpeed: ld a,6
+PLY_SFX_Track3_PlayNoForward:
 	ld (PLY_SFX_Track3_InstrumentSpeedCpt + 1),a
 
-PLY_SFX_Track3_End
+PLY_SFX_Track3_End:
 
 	endif
 ;******************************************
@@ -913,7 +914,8 @@ PLY_SFX_Track3_End
 
 
 
-	ld a,ixl			;Save the Register 7 of the Track 3.
+	;ld a,ixl			;Save the Register 7 of the Track 3.
+	defb $dd, $7d			; workaround code generation bug in z80asm
 	ex af,af'
 	
 
@@ -922,8 +924,8 @@ PLY_SFX_Track3_End
 ;Play the Sound on Track 2
 ;-------------------------
 	ld iy,PLY_PSGRegistersArray + 2
-PLY_Track2_Pitch ld hl,0
-PLY_Track2_PitchAdd ld de,0
+PLY_Track2_Pitch: ld hl,0
+PLY_Track2_PitchAdd: ld de,0
 	add hl,de
 	ld (PLY_Track2_Pitch + 1),hl
 	sra h				;Shift the Pitch to slow its speed.
@@ -933,21 +935,21 @@ PLY_Track2_PitchAdd ld de,0
 	ex de,hl
 	exx
 
-PLY_Track2_Volume equ $+2
-PLY_Track2_Note equ $+1
+PLY_Track2_Volume: equ $+2
+PLY_Track2_Note: equ $+1
 	ld de,0				;D=Inverted Volume E=Note
-PLY_Track2_Instrument ld hl,0
+PLY_Track2_Instrument: ld hl,0
 	call PLY_PlaySound
 
-PLY_Track2_InstrumentSpeedCpt ld a,1
+PLY_Track2_InstrumentSpeedCpt: ld a,1
 	dec a
 	jp z,PLY_Track2_PlayNoForward_Z	;jr nz,PLY_Track2_PlayNoForward
-		ds 7-3, 0
+		defs 7-3, 0
 		jr PLY_Track2_PlayNoForward
-PLY_Track2_PlayNoForward_Z
+PLY_Track2_PlayNoForward_Z:
 	ld (PLY_Track2_Instrument + 1),hl
-PLY_Track2_InstrumentSpeed ld a,6
-PLY_Track2_PlayNoForward
+PLY_Track2_InstrumentSpeed: ld a,6
+PLY_Track2_PlayNoForward:
 	ld (PLY_Track2_InstrumentSpeedCpt + 1),a
 
 
@@ -957,12 +959,12 @@ PLY_Track2_PlayNoForward
 ;***************************************
 	if PLY_UseSoundEffects
 
-PLY_SFX_Track2_Pitch ld de,0
+PLY_SFX_Track2_Pitch: ld de,0
 	exx
-PLY_SFX_Track2_Volume equ $+2
-PLY_SFX_Track2_Note equ $+1
+PLY_SFX_Track2_Volume: equ $+2
+PLY_SFX_Track2_Note: equ $+1
 	ld de,0				;D=Inverted Volume E=Note
-PLY_SFX_Track2_Instrument ld hl,0	;If 0, no sound effect.
+PLY_SFX_Track2_Instrument: ld hl,0	;If 0, no sound effect.
 	ld a,l
 	or h
 	jr z,PLY_SFX_Track2_End
@@ -975,23 +977,24 @@ PLY_SFX_Track2_Instrument ld hl,0	;If 0, no sound effect.
 	or h
 	jr z,PLY_SFX_Track2_Instrument_SetAddress
 
-PLY_SFX_Track2_InstrumentSpeedCpt ld a,1
+PLY_SFX_Track2_InstrumentSpeedCpt: ld a,1
 	dec a
 	jr nz,PLY_SFX_Track2_PlayNoForward
-PLY_SFX_Track2_Instrument_SetAddress
+PLY_SFX_Track2_Instrument_SetAddress:
 	ld (PLY_SFX_Track2_Instrument + 1),hl
-PLY_SFX_Track2_InstrumentSpeed ld a,6
-PLY_SFX_Track2_PlayNoForward
+PLY_SFX_Track2_InstrumentSpeed: ld a,6
+PLY_SFX_Track2_PlayNoForward:
 	ld (PLY_SFX_Track2_InstrumentSpeedCpt + 1),a
 
-PLY_SFX_Track2_End
+PLY_SFX_Track2_End:
 	endif
 ;******************************************
 
 
 	ex af,af'
 	add a,a			;Mix Reg7 from Track2 with Track3, making room first.
-	or ixl
+	;or ixl
+	defb $dd, $b5	; workaround code generation bug in z80asm
 	rla
 	ex af,af'
 
@@ -1003,8 +1006,8 @@ PLY_SFX_Track2_End
 ;-------------------------
 
 	ld iy,PLY_PSGRegistersArray
-PLY_Track1_Pitch ld hl,0
-PLY_Track1_PitchAdd ld de,0
+PLY_Track1_Pitch: ld hl,0
+PLY_Track1_PitchAdd: ld de,0
 	add hl,de
 	ld (PLY_Track1_Pitch + 1),hl
 	sra h				;Shift the Pitch to slow its speed.
@@ -1014,21 +1017,21 @@ PLY_Track1_PitchAdd ld de,0
 	ex de,hl
 	exx
 
-PLY_Track1_Volume equ $+2
-PLY_Track1_Note equ $+1
+PLY_Track1_Volume: equ $+2
+PLY_Track1_Note: equ $+1
 	ld de,0				;D=Inverted Volume E=Note
-PLY_Track1_Instrument ld hl,0
+PLY_Track1_Instrument: ld hl,0
 	call PLY_PlaySound
 
-PLY_Track1_InstrumentSpeedCpt ld a,1
+PLY_Track1_InstrumentSpeedCpt: ld a,1
 	dec a
 	jp z,PLY_Track1_PlayNoForward_Z	;jr nz,PLY_Track1_PlayNoForward
-		ds 7-3, 0
+		defs 7-3, 0
 		jr PLY_Track1_PlayNoForward
-PLY_Track1_PlayNoForward_Z
+PLY_Track1_PlayNoForward_Z:
 	ld (PLY_Track1_Instrument + 1),hl
-PLY_Track1_InstrumentSpeed ld a,6
-PLY_Track1_PlayNoForward
+PLY_Track1_InstrumentSpeed: ld a,6
+PLY_Track1_PlayNoForward:
 	ld (PLY_Track1_InstrumentSpeedCpt + 1),a
 
 
@@ -1040,12 +1043,12 @@ PLY_Track1_PlayNoForward
 	if PLY_UseSoundEffects
 
 
-PLY_SFX_Track1_Pitch ld de,0
+PLY_SFX_Track1_Pitch: ld de,0
 	exx
-PLY_SFX_Track1_Volume equ $+2
-PLY_SFX_Track1_Note equ $+1
+PLY_SFX_Track1_Volume: equ $+2
+PLY_SFX_Track1_Note: equ $+1
 	ld de,0				;D=Inverted Volume E=Note
-PLY_SFX_Track1_Instrument ld hl,0	;If 0, no sound effect.
+PLY_SFX_Track1_Instrument: ld hl,0	;If 0, no sound effect.
 	ld a,l
 	or h
 	jr z,PLY_SFX_Track1_End
@@ -1058,16 +1061,16 @@ PLY_SFX_Track1_Instrument ld hl,0	;If 0, no sound effect.
 	or h
 	jr z,PLY_SFX_Track1_Instrument_SetAddress
 
-PLY_SFX_Track1_InstrumentSpeedCpt ld a,1
+PLY_SFX_Track1_InstrumentSpeedCpt: ld a,1
 	dec a
 	jr nz,PLY_SFX_Track1_PlayNoForward
-PLY_SFX_Track1_Instrument_SetAddress
+PLY_SFX_Track1_Instrument_SetAddress:
 	ld (PLY_SFX_Track1_Instrument + 1),hl
-PLY_SFX_Track1_InstrumentSpeed ld a,6
-PLY_SFX_Track1_PlayNoForward
+PLY_SFX_Track1_InstrumentSpeed: ld a,6
+PLY_SFX_Track1_PlayNoForward:
 	ld (PLY_SFX_Track1_InstrumentSpeedCpt + 1),a
 
-PLY_SFX_Track1_End
+PLY_SFX_Track1_End:
 	endif
 ;***********************************
 
@@ -1078,13 +1081,14 @@ PLY_SFX_Track1_End
 
 
 	ex af,af'
-	or ixl			;Mix Reg7 from Track3 with Track2+1.
+	;or ixl			;Mix Reg7 from Track3 with Track2+1.
+	defb $dd, $b5	; work around code generation bug in z80asm
 
 
 
 
 ;Send the registers to PSG. Various codes according to the machine used.
-PLY_SendRegisters
+PLY_SendRegisters:
 ;A=Register 7
 
 
@@ -1155,7 +1159,7 @@ PLY_SendRegisters
 	out (AY_AddrPort),a
 	ld a,(hl)
 	if PLY_UseFades
-PLY_Channel1_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
+PLY_Channel1_FadeValue: sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
 	jr nc,$+3
 	xor a
 	endif
@@ -1170,7 +1174,7 @@ PLY_Channel1_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (v
 	ld a,(hl)
 
 	if PLY_UseFades
-PLY_Channel2_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
+PLY_Channel2_FadeValue: sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
 	jr nc,$+3
 	xor a
 	endif
@@ -1185,7 +1189,7 @@ PLY_Channel2_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (v
 	ld a,(hl)
 
 	if PLY_UseFades
-PLY_Channel3_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
+PLY_Channel3_FadeValue: sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
 	jr nc,$+3
 	xor a
 	endif
@@ -1210,7 +1214,7 @@ PLY_Channel3_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (v
 ;Register 13
 	if PLY_SystemFriendly
 	call PLY_PSGReg13_Code
-PLY_PSGREG13_RecoverSystemRegisters
+PLY_PSGREG13_RecoverSystemRegisters:
 	pop iy
 	pop ix
 	pop bc
@@ -1218,17 +1222,17 @@ PLY_PSGREG13_RecoverSystemRegisters
 	exx
 	ex af,af'
 	;Restore Interrupt status
-PLY_RestoreInterruption nop				;Will be automodified to an DI/EI.
+PLY_RestoreInterruption: nop				;Will be automodified to an DI/EI.
 	ret
 
 	endif
 
 
-PLY_PSGReg13_Code
+PLY_PSGReg13_Code:
 	ld a,13
 	out (AY_AddrPort),a
 	ld a,(hl)
-PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
+PLY_PSGReg13_Retrig: cp 255				;If IsRetrig?, force the R13 to be triggered.
 	ret z
 
 	out (AY_DataPort),a
@@ -1256,29 +1260,29 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 
 	if PLY_UseCPCMachine
 
-	ld de,#c080
-	ld b,#f6
-	out (c),d	;#f6c0
+	ld de,$c080
+	ld b,$f6
+	out (c),d	;$f6c0
 	exx
 	ld hl,PLY_PSGRegistersArray
-	ld e,#f6
-	ld bc,#f401
+	ld e,$f6
+	ld bc,$f401
 
 ;Register 0
-	defb #ed,#71	;#f400+Register
+	defb $ed,$71	;$f400+Register
 	ld b,e
-	defb #ed,#71	;#f600
+	defb $ed,$71	;$f600
 	dec b
-	outi		;#f400+value
+	outi		;$f400+value
 	exx
-	out (c),e	;#f680
-	out (c),d	;#f6c0
+	out (c),e	;$f680
+	out (c),d	;$f6c0
 	exx
 
 ;Register 1
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1290,7 +1294,7 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 2
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1302,7 +1306,7 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 3
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1314,7 +1318,7 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 4
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1326,7 +1330,7 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 5
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1338,7 +1342,7 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 6
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1350,7 +1354,7 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 7
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	dec b
 	out (c),a			;Read A register instead of the list.
@@ -1363,18 +1367,18 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 ;Register 8
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	if PLY_UseFades
 		dec b
 		ld a,(hl)
-PLY_Channel1_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
+PLY_Channel1_FadeValue: sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
 		jr nc,PLY_Channel1_FadeValue_NoOverflow	;jr nc,$+6
-		defb #ed,#71
+		defb $ed,$71
 		jr PLY_Channel1_FadeValue_End
-PLY_Channel1_FadeValue_NoOverflow out (c),a
+PLY_Channel1_FadeValue_NoOverflow: out (c),a
 		defs 2,0
-PLY_Channel1_FadeValue_End inc hl
+PLY_Channel1_FadeValue_End: inc hl
 
 	else
 	
@@ -1390,18 +1394,18 @@ PLY_Channel1_FadeValue_End inc hl
 ;Register 9
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	if PLY_UseFades			;If PLY_UseFades is set to 1, we manage the volume fade.
 		dec b
 		ld a,(hl)
-PLY_Channel2_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
+PLY_Channel2_FadeValue: sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
 		jr nc,PLY_Channel2_FadeValue_NoOverflow	;jr nc,$+6
-		defb #ed,#71
+		defb $ed,$71
 		jr PLY_Channel2_FadeValue_End
-PLY_Channel2_FadeValue_NoOverflow out (c),a
+PLY_Channel2_FadeValue_NoOverflow: out (c),a
 		defs 2,0
-PLY_Channel2_FadeValue_End inc hl
+PLY_Channel2_FadeValue_End: inc hl
 
 	else
 	
@@ -1417,18 +1421,18 @@ PLY_Channel2_FadeValue_End inc hl
 ;Register 10
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	if PLY_UseFades
 		dec b
 		ld a,(hl)
-PLY_Channel3_FadeValue sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
+PLY_Channel3_FadeValue: sub 0		;Set a value from 0 (full volume) to 16 or more (volume to 0).
 		jr nc,PLY_Channel3_FadeValue_NoOverflow	;jr nc,$+6
-		defb #ed,#71
+		defb $ed,$71
 		jr PLY_Channel3_FadeValue_End
-PLY_Channel3_FadeValue_NoOverflow out (c),a
+PLY_Channel3_FadeValue_NoOverflow: out (c),a
 		defs 2,0
-PLY_Channel3_FadeValue_End inc hl
+PLY_Channel3_FadeValue_End: inc hl
 
 	else
 	
@@ -1443,7 +1447,7 @@ PLY_Channel3_FadeValue_End inc hl
 ;Register 11
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1455,7 +1459,7 @@ PLY_Channel3_FadeValue_End inc hl
 ;Register 12
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1468,7 +1472,7 @@ PLY_Channel3_FadeValue_End inc hl
 	if PLY_SystemFriendly
 	call PLY_PSGReg13_Code
 
-PLY_PSGREG13_RecoverSystemRegisters
+PLY_PSGREG13_RecoverSystemRegisters:
 	pop iy
 	pop ix
 	pop bc
@@ -1476,20 +1480,20 @@ PLY_PSGREG13_RecoverSystemRegisters
 	exx
 	ex af,af'
 	;Restore Interrupt status
-PLY_RestoreInterruption nop				;Will be automodified to an DI/EI.
+PLY_RestoreInterruption: nop				;Will be automodified to an DI/EI.
 	ret
 
 	endif
 
 
-PLY_PSGReg13_Code
+PLY_PSGReg13_Code:
 	ld a,(hl)
-PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
+PLY_PSGReg13_Retrig: cp 255				;If IsRetrig?, force the R13 to be triggered.
 	jr z,PLY_PSGReg13_NoRetrig 	;ret z
 	ld (PLY_PSGReg13_Retrig + 1),a
 	out (c),c
 	ld b,e
-	defb #ed,#71
+	defb $ed,$71
 	dec b
 	outi
 	exx
@@ -1497,11 +1501,11 @@ PLY_PSGReg13_Retrig cp 255				;If IsRetrig?, force the R13 to be triggered.
 	out (c),d
 	ret
 
-PLY_PSGReg13_NoRetrig
-		;ds 31-3-1,0
+PLY_PSGReg13_NoRetrig:
+		;defs 31-3-1,0
 		ld b,6
 		djnz $
-		ds 2,0
+		defs 2,0
 	ret
 
 	endif
@@ -1519,23 +1523,23 @@ PLY_PSGReg13_NoRetrig
 
 ;There are two holes in the list, because the Volume registers are set relatively to the Frequency of the same Channel (+7, always).
 ;Also, the Reg7 is passed as a register, so is not kept in the memory.
-PLY_PSGRegistersArray
-PLY_PSGReg0 db 0
-PLY_PSGReg1 db 0
-PLY_PSGReg2 db 0
-PLY_PSGReg3 db 0
-PLY_PSGReg4 db 0
-PLY_PSGReg5 db 0
-PLY_PSGReg6 db 0
-PLY_PSGReg8 db 0		;+7
-	    db 0
-PLY_PSGReg9 db 0		;+9
-	    db 0
-PLY_PSGReg10 db 0		;+11
-PLY_PSGReg11 db 0
-PLY_PSGReg12 db 0
-PLY_PSGReg13 db 0
-PLY_PSGRegistersArray_End
+PLY_PSGRegistersArray:
+PLY_PSGReg0: defb 0
+PLY_PSGReg1: defb 0
+PLY_PSGReg2: defb 0
+PLY_PSGReg3: defb 0
+PLY_PSGReg4: defb 0
+PLY_PSGReg5: defb 0
+PLY_PSGReg6: defb 0
+PLY_PSGReg8: defb 0		;+7
+	    defb 0
+PLY_PSGReg9: defb 0		;+9
+	    defb 0
+PLY_PSGReg10: defb 0		;+11
+PLY_PSGReg11: defb 0
+PLY_PSGReg12: defb 0
+PLY_PSGReg13: defb 0
+PLY_PSGRegistersArray_End:
 
 
 
@@ -1581,9 +1585,9 @@ PLY_PSGRegistersArray_End
 ;IXH=Save original Note (only used for Independant mode).
 
 
-PLY_PlaySound
+PLY_PlaySound:
 
-PLY_PS_Hard_TM  equ 258                 ;The whole Hardware sound management TM. Declared here because needed later.
+PLY_PS_Hard_TM:  equ 258                 ;The whole Hardware sound management TM. Declared here because needed later.
 
 	;STABLE SPECIFIC Code
 	;The looping management is problematic, as it uses a specific flag. When detected, it started this
@@ -1601,9 +1605,9 @@ PLY_PS_Hard_TM  equ 258                 ;The whole Hardware sound management TM.
 	ld h,(hl)
 	ld l,a
 	jr PLY_PS_AfterLoopTest
-PLY_PS_NoLoop
-	ds 12,0
-PLY_PS_AfterLoopTest
+PLY_PS_NoLoop:
+	defs 12,0
+PLY_PS_AfterLoopTest:
 
 
 
@@ -1631,13 +1635,13 @@ PLY_PS_AfterLoopTest
 	;Null Volume. It means no Sound. We stop the Sound, the Noise, and it's over.
 	ld (iy + 7),a			;We have to make the volume to 0, because if a bass Hard was activated before, we have to stop it.
 	ld ixl,%1001
-		;ds PLY_PS_Hard_TM - 19 - 3,0     ;=236
+		;defs PLY_PS_Hard_TM - 19 - 3,0     ;=236
 		ld b,58
 		djnz $
-		ds 3,0
+		defs 3,0
 	ret
 
-PLY_PS_S_SoundOn
+PLY_PS_S_SoundOn:
 	;Volume is here, no Second Byte needed. It means we have a simple Software sound (Sound = On, Noise = Off)
 	;We have to test Arpeggio and Pitch, however.
 	ld ixl,%1000
@@ -1652,15 +1656,15 @@ PLY_PS_S_SoundOn
 	ld (iy + 0),l					;Code Frequency.
 	ld (iy + 1),h
 	exx
-		;ds PLY_PS_Hard_TM - 107 - 3,0      ;=148
+		;defs PLY_PS_Hard_TM - 107 - 3,0      ;=148
 		ld b,36
 		djnz $
-		ds 3,0
+		defs 3,0
 	ret
 	
 
 
-PLY_PS_S_SecondByteNeeded
+PLY_PS_S_SecondByteNeeded:
 	ld ixl,%1000	;By defaut, No Noise, Sound.
 
 	;Second Byte needed.
@@ -1671,12 +1675,12 @@ PLY_PS_S_SecondByteNeeded
 	ld a,c
 	and %11111
 	jp nz,PLY_PS_S_SBN_NoNoise_NZ		;jr z,PLY_PS_S_SBN_NoNoise
-		ds 7-3,0
+		defs 7-3,0
 		jr PLY_PS_S_SBN_NoNoise
-PLY_PS_S_SBN_NoNoise_NZ
+PLY_PS_S_SBN_NoNoise_NZ:
 	ld (PLY_PSGReg6),a
 	ld ixl,%0000					;Open Noise Channel.
-PLY_PS_S_SBN_NoNoise
+PLY_PS_S_SBN_NoNoise:
 
 	;Here we have either Volume and/or Sound. So first we need to read the Volume.
 	ld a,b
@@ -1690,14 +1694,15 @@ PLY_PS_S_SBN_NoNoise
 	bit 5,c
 	jp nz,PLY_PS_S_SBN_Sound	;jr nz,PLY_PS_S_SBN_Sound
 	;No Sound. Stop here.
-	inc ixl						;Set Sound bit to stop the Sound.
-		;ds PLY_PS_Hard_TM - 44 - 3,0     ;=211
+	;inc ixl						;Set Sound bit to stop the Sound.
+	defb $dd,$2c 				; workaround code generation bug in z80asm
+		;defs PLY_PS_Hard_TM - 44 - 3,0     ;=211
 		ld b,52
 		djnz $
-		ds 2,0
+		defs 2,0
 	ret
 
-PLY_PS_S_SBN_Sound
+PLY_PS_S_SBN_Sound:
 	;Manual Frequency ?
 	rr b						;Needed for the subroutine to get the good flags.
 	bit 6,c
@@ -1705,10 +1710,10 @@ PLY_PS_S_SBN_Sound
 	ld (iy + 0),l					;Code Frequency.
 	ld (iy + 1),h
 	exx
-		;ds PLY_PS_Hard_TM - 131 - 3,0       ;=124
+		;defs PLY_PS_Hard_TM - 131 - 3,0       ;=124
 		ld b,30
 		djnz $
-		ds 3,0
+		defs 3,0
 	ret
 
 
@@ -1717,29 +1722,29 @@ PLY_PS_S_SBN_Sound
 ;**********
 ;Hard Sound
 ;**********
-PLY_PS_Hard
+PLY_PS_Hard:
 
 	;We don't set the Volume to 16 now because we may have reached the end of the sound !
 	rr b						;Test Retrig here, it is common to every Hard sounds.
 	jp c,PLY_PS_Hard_NoRetrig_C	;jr nc,PLY_PS_Hard_NoRetrig
-		;ds 19-3,0
+		;defs 19-3,0
 		ld a,3          ;B can't be used.
 		dec a
 		jp nz,$-1
-		ds 2,0
+		defs 2,0
 		jr PLY_PS_Hard_NoRetrig
-PLY_PS_Hard_NoRetrig_C
+PLY_PS_Hard_NoRetrig_C:
 	ld a,(PLY_Track1_InstrumentSpeedCpt + 1)	;Retrig only if it is the first step in this line of Instrument !
 	ld c,a
 	ld a,(PLY_Track1_InstrumentSpeed + 1)
 	cp c
 	jp z,PLY_PS_Hard_NoRetrig_Z	;jr nz,PLY_PS_Hard_NoRetrig
-		ds 6-3,0
+		defs 6-3,0
 		jr PLY_PS_Hard_NoRetrig
-PLY_PS_Hard_NoRetrig_Z
+PLY_PS_Hard_NoRetrig_Z:
 	ld a,PLY_RetrigValue
 	ld (PLY_PSGReg13_Retrig + 1),a
-PLY_PS_Hard_NoRetrig
+PLY_PS_Hard_NoRetrig:
 
 	;Independant/Loop or Software/Hardware Dependent ?
 	bit 1,b				;We don't shift the bits, so that we can use the same code (Frequency calculation) several times.
@@ -1747,7 +1752,7 @@ PLY_PS_Hard_NoRetrig
 
 		;This tempo is needed because the Independant mode has one more test before being triggered
 		;(check the PLY_PS_Hard_LoopOrIndependent method), so we have to compensate.
-		;ds 17,0
+		;defs 17,0
 		ld a,4          ;B can't be used.
 		dec a
 		jr nz,$-1
@@ -1769,7 +1774,7 @@ PLY_PS_Hard_NoRetrig
 ;******************
 ;Software Dependent
 ;******************
-PLY_PS_SoftwareDependent_TM equ 187                   ;TM taken by this whole subroutine (PLY_PS_SD_Noise included).
+PLY_PS_SoftwareDependent_TM: equ 187                   ;TM taken by this whole subroutine (PLY_PS_SD_Noise included).
 
 	;Calculate the Software frequency
 	bit 4-2,b		;Manual Frequency ? -2 because the byte has been shifted previously.
@@ -1787,7 +1792,7 @@ PLY_PS_SoftwareDependent_TM equ 187                   ;TM taken by this whole su
 	ld a,b			;Used to get the HardwarePitch flag within the second registers set.
 	exx
 
-PLY_PS_SD_Shift jr $+2          			;Stable version shift processing.
+PLY_PS_SD_Shift: jr $+2          			;Stable version shift processing.
 	jp PLY_PS_SD_Shift0
 	nop
 	jp PLY_PS_SD_Shift1
@@ -1803,22 +1808,22 @@ PLY_PS_SD_Shift jr $+2          			;Stable version shift processing.
 	jp PLY_PS_SD_Shift6
 	nop
 	jp PLY_PS_SD_Shift7
-PLY_PS_SD_Shift_Return
+PLY_PS_SD_Shift_Return:
 	jp c,PLY_PS_SD_Shift_Return_Overflow_C	;jr nc,$+3
 		jr PLY_PS_SD_Shift_Return_NoOverflow
-PLY_PS_SD_Shift_Return_Overflow_C
+PLY_PS_SD_Shift_Return_Overflow_C:
 	inc hl
 	nop
-PLY_PS_SD_Shift_Return_NoOverflow
+PLY_PS_SD_Shift_Return_NoOverflow:
 
 	;Hardware Pitch ?
 	bit 7-2,a
 	jp nz,PLY_PS_SD_NoHardwarePitch_NZ		;jr z,PLY_PS_SD_NoHardwarePitch
-		;ds 16-3, 0
+		;defs 16-3, 0
 		ld b,3
 		djnz $
 		jr PLY_PS_SD_NoHardwarePitch
-PLY_PS_SD_NoHardwarePitch_NZ
+PLY_PS_SD_NoHardwarePitch_NZ:
 	exx						;Get Pitch and add it to the just calculated Hardware Frequency.
 	ld a,(hl)
 	inc hl
@@ -1831,22 +1836,22 @@ PLY_PS_SD_NoHardwarePitch_NZ
 	exx
 	adc a,h
 	ld h,a
-PLY_PS_SD_NoHardwarePitch
+PLY_PS_SD_NoHardwarePitch:
 	ld (PLY_PSGReg11),hl
 	exx
 
 
 	;This code is also used by Hardware Dependent.
-PLY_PS_SD_Noise
+PLY_PS_SD_Noise:
 	;Noise ?
 	bit 7,c
 	jp nz,PLY_PS_SD_Noise_NZ		;ret z
-		;ds 14-3, 0
+		;defs 14-3, 0
 		ld b,2
 		djnz $
-		ds 2,0
+		defs 2,0
 	ret
-PLY_PS_SD_Noise_NZ
+PLY_PS_SD_Noise_NZ:
 	ld a,(hl)
 	inc hl
 	ld (PLY_PSGReg6),a
@@ -1858,11 +1863,11 @@ PLY_PS_SD_Noise_NZ
 ;******************
 ;Hardware Dependent
 ;******************
-PLY_PS_HardwareDependent
-PLY_PS_HardwareDependent_TM equ 184                   ;TM taken by this whole subroutine (PLY_PS_SD_Noise included).
+PLY_PS_HardwareDependent:
+PLY_PS_HardwareDependent_TM: equ 184                   ;TM taken by this whole subroutine (PLY_PS_SD_Noise included).
 
 	;The Software dependent code is a *little* slower than the Hardware dependent code, as this works.
-	ds PLY_PS_SoftwareDependent_TM - PLY_PS_HardwareDependent_TM, 0
+	defs PLY_PS_SoftwareDependent_TM - PLY_PS_HardwareDependent_TM, 0
 
 	;Calculate the Hardware frequency
 	bit 4-2,b			;Manual Hardware Frequency ? -2 Because the byte has been shifted previously.
@@ -1880,7 +1885,7 @@ PLY_PS_HardwareDependent_TM equ 184                   ;TM taken by this whole su
 	exx
 
 
-PLY_PS_HD_Shift jr $+2          ;Stable version shift processing.
+PLY_PS_HD_Shift: jr $+2          ;Stable version shift processing.
 	jp PLY_PS_HD_Shift0
 	nop
 	jp PLY_PS_HD_Shift1
@@ -1896,16 +1901,16 @@ PLY_PS_HD_Shift jr $+2          ;Stable version shift processing.
 	jp PLY_PS_HD_Shift6
 	nop
 	jp PLY_PS_HD_Shift7
-PLY_PS_HD_Shift_Return
+PLY_PS_HD_Shift_Return:
 
 	;Software Pitch ?
 	bit 7-2,a
 	jp nz,PLY_PS_HD_NoSoftwarePitch_NZ	;jr z,PLY_PS_HD_NoSoftwarePitch
-		;ds 16-3, 0
+		;defs 16-3, 0
 		ld b,3
 		djnz $
 		jr PLY_PS_HD_NoSoftwarePitch
-PLY_PS_HD_NoSoftwarePitch_NZ
+PLY_PS_HD_NoSoftwarePitch_NZ:
 	exx						;Get Pitch and add it to the just calculated Software Frequency.
 	ld a,(hl)
 	inc hl
@@ -1918,7 +1923,7 @@ PLY_PS_HD_NoSoftwarePitch_NZ
 	exx
 	adc a,h
 	ld h,a
-PLY_PS_HD_NoSoftwarePitch
+PLY_PS_HD_NoSoftwarePitch:
 	ld (iy + 0),l					;Code Frequency.
 	ld (iy + 1),h
 	exx
@@ -1930,20 +1935,20 @@ PLY_PS_HD_NoSoftwarePitch
 
 
 
-PLY_PS_Hard_LoopOrIndependent
+PLY_PS_Hard_LoopOrIndependent:
 	bit 0,b					;We mustn't shift it to get the result in the Carry, as it would be mess the structure
 	jr z,PLY_PS_Independent			;of the flags, making it uncompatible with the common code.
 
 	;The sound has ended.
 	;If Sound Effects activated, we mark the "end of sound" by returning a 0 as an address.
 	if PLY_UseSoundEffects
-PLY_PS_EndSound_SFX ld a,0			;Is the sound played is a SFX (1) or a normal sound (0) ?
+PLY_PS_EndSound_SFX: ld a,0			;Is the sound played is a SFX (1) or a normal sound (0) ?
 	or a
 	jr z,PLY_PS_EndSound_NotASFX
 	ld hl,0
 
 	ret
-PLY_PS_EndSound_NotASFX
+PLY_PS_EndSound_NotASFX:
 	endif
 
 	;The sound has ended. Read the new pointer and restart instrument.
@@ -1963,8 +1968,8 @@ PLY_PS_EndSound_NotASFX
 ;***********
 ;Independent
 ;***********
-PLY_PS_Independent
-PLY_PS_Independent_TM equ 224                   ;TM taken by this whole subroutine (RET included).
+PLY_PS_Independent:
+PLY_PS_Independent_TM: equ 224                   ;TM taken by this whole subroutine (RET included).
 
 	ld (iy + 7),16			;Set Volume
 
@@ -1973,12 +1978,12 @@ PLY_PS_Independent_TM equ 224                   ;TM taken by this whole subrouti
 	jp nz,PLY_PS_I_SoundOn	;jr nz,PLY_PS_I_SoundOn
 	;No Sound ! It means we don't care about the software frequency (manual frequency, arpeggio, pitch).
 	ld ixl,%1001
-		;ds 94 - 6,0
+		;defs 94 - 6,0
 		ld b,21
 		djnz $
-		ds 3,0
+		defs 3,0
 	jr PLY_PS_I_SkipSoftwareFrequencyCalculation
-PLY_PS_I_SoundOn
+PLY_PS_I_SoundOn:
 	ld ixl,%1000			;Sound is on.
 	ld ixh,e			;Save the original note for the Hardware frequency, because a Software Arpeggio will modify it.
 
@@ -1990,7 +1995,7 @@ PLY_PS_I_SoundOn
 	exx
 
 	ld e,ixh
-PLY_PS_I_SkipSoftwareFrequencyCalculation
+PLY_PS_I_SkipSoftwareFrequencyCalculation:
 	ld b,(hl)			;Get Second Byte.
 	inc hl
 	ld a,b				;Get the Hardware Envelope waveform.
@@ -2014,12 +2019,13 @@ PLY_PS_I_SkipSoftwareFrequencyCalculation
 	ld a,(hl)
 	inc hl
 	ld (PLY_PSGReg6),a
-	ld a,ixl	;Set the Noise bit.
+	;ld a,ixl	;Set the Noise bit.
+	defb $dd, $7d	; workaround code generation bug in z80asm
 	res 3,a
 	ld ixl,a
 	ret
-PLY_PS_I_NoNoise
-		;ds 14,0
+PLY_PS_I_NoNoise:
+		;defs 14,0
 		ld b,3
 		djnz $
 		nop
@@ -2052,7 +2058,7 @@ PLY_PS_I_NoNoise
 ;HL = Pointer on Instrument moved forward.
 ;HL'= Frequency
 ;	RETURN IN AUXILIARY REGISTERS
-PLY_PS_CalculateFrequency_TestManualFrequency
+PLY_PS_CalculateFrequency_TestManualFrequency:
 
 	jp z,PLY_PS_CalculateFrequency		;jr z,PLY_PS_CalculateFrequency
 	;Manual Frequency. We read it, no need to read Pitch and Arpeggio.
@@ -2068,17 +2074,17 @@ PLY_PS_CalculateFrequency_TestManualFrequency
 	exx
 	adc a,d						;Add TrackPitch HSB.
 	ld h,a
-		;ds 66 - 18, 0
+		;defs 66 - 18, 0
 		ld a,11                 ;B can't be used.
 		dec a
 		jp nz,$-1
-		ds 2,0
+		defs 2,0
 	ret
 
 
 
 
-PLY_PS_CalculateFrequency       ;66 with RET.
+PLY_PS_CalculateFrequency:       ;66 with RET.
 	;Pitch ?
 	bit 5-1,b
 	jr z,PLY_PS_S_SoundOn_NoPitch_Z	; --> The JR is done on purpose.	;jr z,PLY_PS_S_SoundOn_NoPitch
@@ -2095,32 +2101,32 @@ PLY_PS_CalculateFrequency       ;66 with RET.
 	ld d,a
 	exx
 		jr PLY_PS_S_SoundOn_NoPitch
-PLY_PS_S_SoundOn_NoPitch_Z
-	;	ds 19-1, 0
+PLY_PS_S_SoundOn_NoPitch_Z:
+	;	defs 19-1, 0
 		ld a,4          ;B can't be used.
 		dec a
 		jp nz,$-1
 
-PLY_PS_S_SoundOn_NoPitch
+PLY_PS_S_SoundOn_NoPitch:
 
 	;Arpeggio ?
 	ld a,e
 	bit 4-1,b
 	jp nz,PLY_PS_S_SoundOn_ArpeggioEnd_NZ	;jr z,PLY_PS_S_SoundOn_ArpeggioEnd
-		ds 11-3,0
+		defs 11-3,0
 		jr PLY_PS_S_SoundOn_ArpeggioEnd
-PLY_PS_S_SoundOn_ArpeggioEnd_NZ
+PLY_PS_S_SoundOn_ArpeggioEnd_NZ:
 	add a,(hl)					;Add Arpeggio to Note.
 	inc hl
 	cp 144
 	jr nc,PLY_PS_S_SoundOn_Overflow_NC		;jr c,$+4
-		;ds 0,0
+		;defs 0,0
 		jr PLY_PS_S_SoundOn_Overflow
-PLY_PS_S_SoundOn_Overflow_NC
+PLY_PS_S_SoundOn_Overflow_NC:
 	ld a,143
-PLY_PS_S_SoundOn_Overflow
+PLY_PS_S_SoundOn_Overflow:
 
-PLY_PS_S_SoundOn_ArpeggioEnd
+PLY_PS_S_SoundOn_ArpeggioEnd:
 	;Frequency calculation.
 	exx
 	ld l,a
@@ -2168,8 +2174,8 @@ PLY_PS_S_SoundOn_ArpeggioEnd
 ;E=Note
 ;B=Instrument. 0=RST
 ;IX=PitchAdd. Only used if Pitch? = 1.
-PLY_ReadTrack
-PLY_ReadTrack_NOPS      equ 58          ;whole code with final RET
+PLY_ReadTrack:
+PLY_ReadTrack_NOPS:      equ 58          ;whole code with final RET
 
 	ld a,(hl)
 	inc hl
@@ -2181,25 +2187,25 @@ PLY_ReadTrack_NOPS      equ 58          ;whole code with final RET
 	dec a			;0 (32-32) = Escape Code for more Notes (parameters will be read)
 	;Note. Parameters are present. But the note is only present if Note? flag is 1.
 	ld e,a			;Save Note.
-	ds 7-2, 0
+	defs 7-2, 0
 	;Read Parameters
-PLY_ReadTrack_ReadParameters
+PLY_ReadTrack_ReadParameters:
 	ld a,(hl)
 	ld d,a			;Save Parameters.
 	inc hl
 
 	rla			;Pitch ?
 	jp c,PLY_ReadTrack_Pitch_End_C	;jr nc,PLY_ReadTrack_Pitch_End
-		ds 12-3, 0
+		defs 12-3, 0
 		jr PLY_ReadTrack_Pitch_End
-PLY_ReadTrack_Pitch_End_C
+PLY_ReadTrack_Pitch_End_C:
 	ld b,(hl)		;Get PitchAdd
 	ld ixl,b
 	inc hl
 	ld b,(hl)
 	ld ixh,b
 	inc hl
-PLY_ReadTrack_Pitch_End
+PLY_ReadTrack_Pitch_End:
 
 	rla			;Skip IsNote? flag.
 	rla			;New Instrument ?
@@ -2208,12 +2214,12 @@ PLY_ReadTrack_Pitch_End
 	inc hl
 	or a			;Remove Carry, as the player interpret it as a Wait command.
 	ret
-PLY_ReadTrack_End_NC
-	ds 8-3, 0
+PLY_ReadTrack_End_NC:
+	defs 8-3, 0
 	ret
 
 ;Escape code, read the Note and returns to read the Parameters.
-PLY_ReadTrack_NoOptimisation_EscapeCode
+PLY_ReadTrack_NoOptimisation_EscapeCode:
 	ld e,(hl)
 	inc hl
 	jr PLY_ReadTrack_ReadParameters
@@ -2222,7 +2228,7 @@ PLY_ReadTrack_NoOptimisation_EscapeCode
 
 
 
-PLY_ReadTrack_FullOptimisation
+PLY_ReadTrack_FullOptimisation:
 	;Note only, no Pitch, no Volume, Same Instrument.
 	ld d,%01000000			;Note only.
 	sub 1
@@ -2231,26 +2237,26 @@ PLY_ReadTrack_FullOptimisation
 	ld e,(hl)			;Escape Code found (0). Read Note.
 	inc hl
 	or a
-		;ds PLY_ReadTrack_NOPS - 25, 0  ;=33
+		;defs PLY_ReadTrack_NOPS - 25, 0  ;=33
 		ld b,8
 		djnz $
 	ret
 
-PLY_ReadTrack_FullOptimisation_NC
-	;	ds PLY_ReadTrack_NOPS - 25 + 8 - 3, 0      ;=38
+PLY_ReadTrack_FullOptimisation_NC:
+	;	defs PLY_ReadTrack_NOPS - 25 + 8 - 3, 0      ;=38
 		ld b,9
 		djnz $
-		ds 1,0
+		defs 1,0
 	ret
 
 
 
-PLY_ReadTrack_Wait
+PLY_ReadTrack_Wait:
 	add a,32
-		;ds PLY_ReadTrack_NOPS - 19, 0		;=39
+		;defs PLY_ReadTrack_NOPS - 19, 0		;=39
 		ld b,9
 		djnz $
-		ds 2,0
+		defs 2,0
 	ret
 
 
@@ -2266,7 +2272,7 @@ PLY_ReadTrack_Wait
 
 
 ;Stable version - need stable shifting (Software Dependent hard).
-PLY_PS_SD_Shift0
+PLY_PS_SD_Shift0:
 	srl h
 	rr l
 	srl h
@@ -2282,7 +2288,7 @@ PLY_PS_SD_Shift0
 	srl h
 	rr l
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift1
+PLY_PS_SD_Shift1:
 	srl h
 	rr l
 	srl h
@@ -2295,9 +2301,9 @@ PLY_PS_SD_Shift1
 	rr l
 	srl h
 	rr l
-		ds 4*1,0
+		defs 4*1,0
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift2
+PLY_PS_SD_Shift2:
 	srl h
 	rr l
 	srl h
@@ -2308,9 +2314,9 @@ PLY_PS_SD_Shift2
 	rr l
 	srl h
 	rr l
-		ds 4*2,0
+		defs 4*2,0
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift3
+PLY_PS_SD_Shift3:
 	srl h
 	rr l
 	srl h
@@ -2319,51 +2325,51 @@ PLY_PS_SD_Shift3
 	rr l
 	srl h
 	rr l
-		;ds 4*3,0
+		;defs 4*3,0
 		ld b,2
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift4
+PLY_PS_SD_Shift4:
 	srl h
 	rr l
 	srl h
 	rr l
 	srl h
 	rr l
-		;ds 4*4,0
+		;defs 4*4,0
 		ld b,3
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift5
+PLY_PS_SD_Shift5:
 	srl h
 	rr l
 	srl h
 	rr l
-		;ds 4*5,0
+		;defs 4*5,0
 		ld b,4
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift6
+PLY_PS_SD_Shift6:
 	srl h
 	rr l
-		;ds 4*6,0
+		;defs 4*6,0
 		ld b,5
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_SD_Shift_Return
-PLY_PS_SD_Shift7
-		;ds 4*7,0
+PLY_PS_SD_Shift7:
+		;defs 4*7,0
 		ld b,6
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_SD_Shift_Return
 
 
 
-PLY_PS_HD_Shift0
+PLY_PS_HD_Shift0:
 	sla l
 	rl h
 	sla l
@@ -2379,7 +2385,7 @@ PLY_PS_HD_Shift0
 	sla l
 	rl h
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift1
+PLY_PS_HD_Shift1:
 	sla l
 	rl h
 	sla l
@@ -2392,9 +2398,9 @@ PLY_PS_HD_Shift1
 	rl h
 	sla l
 	rl h
-		ds 4*1,0
+		defs 4*1,0
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift2
+PLY_PS_HD_Shift2:
 	sla l
 	rl h
 	sla l
@@ -2405,9 +2411,9 @@ PLY_PS_HD_Shift2
 	rl h
 	sla l
 	rl h
-		ds 4*2,0
+		defs 4*2,0
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift3
+PLY_PS_HD_Shift3:
 	sla l
 	rl h
 	sla l
@@ -2416,90 +2422,90 @@ PLY_PS_HD_Shift3
 	rl h
 	sla l
 	rl h
-		;ds 4*3,0
+		;defs 4*3,0
 		ld b,2
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift4
+PLY_PS_HD_Shift4:
 	sla l
 	rl h
 	sla l
 	rl h
 	sla l
 	rl h
-		;ds 4*4,0
+		;defs 4*4,0
 		ld b,3
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift5
+PLY_PS_HD_Shift5:
 	sla l
 	rl h
 	sla l
 	rl h
-		;ds 4*5,0
+		;defs 4*5,0
 		ld b,4
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift6
+PLY_PS_HD_Shift6:
 	sla l
 	rl h
-		;ds 4*6,0
+		;defs 4*6,0
 		ld b,5
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_HD_Shift_Return
-PLY_PS_HD_Shift7
-		;ds 4*7,0
+PLY_PS_HD_Shift7:
+		;defs 4*7,0
 		ld b,6
 		djnz $
-		ds 3,0
+		defs 3,0
 	jp PLY_PS_HD_Shift_Return
 
-PLY_FrequencyTable
+PLY_FrequencyTable:
 	if PLY_UseCPCMachine
-	dw 3822,3608,3405,3214,3034,2863,2703,2551,2408,2273,2145,2025
-	dw 1911,1804,1703,1607,1517,1432,1351,1276,1204,1136,1073,1012
-	dw 956,902,851,804,758,716,676,638,602,568,536,506
-	dw 478,451,426,402,379,358,338,319,301,284,268,253
-	dw 239,225,213,201,190,179,169,159,150,142,134,127
-	dw 119,113,106,100,95,89,84,80,75,71,67,63
-	dw 60,56,53,50,47,45,42,40,38,36,34,32
-	dw 30,28,27,25,24,22,21,20,19,18,17,16
-	dw 15,14,13,13,12,11,11,10,9,9,8,8
-	dw 7,7,7,6,6,6,5,5,5,4,4,4
-	dw 4,4,3,3,3,3,3,2,2,2,2,2
-	dw 2,2,2,2,1,1,1,1,1,1,1,1
+	defw 3822,3608,3405,3214,3034,2863,2703,2551,2408,2273,2145,2025
+	defw 1911,1804,1703,1607,1517,1432,1351,1276,1204,1136,1073,1012
+	defw 956,902,851,804,758,716,676,638,602,568,536,506
+	defw 478,451,426,402,379,358,338,319,301,284,268,253
+	defw 239,225,213,201,190,179,169,159,150,142,134,127
+	defw 119,113,106,100,95,89,84,80,75,71,67,63
+	defw 60,56,53,50,47,45,42,40,38,36,34,32
+	defw 30,28,27,25,24,22,21,20,19,18,17,16
+	defw 15,14,13,13,12,11,11,10,9,9,8,8
+	defw 7,7,7,6,6,6,5,5,5,4,4,4
+	defw 4,4,3,3,3,3,3,2,2,2,2,2
+	defw 2,2,2,2,1,1,1,1,1,1,1,1
 	endif
 
 	if PLY_UseMSXMachine
-	dw 4095,4095,4095,4095,4095,4095,4095,4095,4095,4030,3804,3591
-	dw 3389,3199,3019,2850,2690,2539,2397,2262,2135,2015,1902,1795
-	dw 1695,1599,1510,1425,1345,1270,1198,1131,1068,1008,951,898
-	dw 847,800,755,712,673,635,599,566,534,504,476,449
-	dw 424,400,377,356,336,317,300,283,267,252,238,224
-	dw 212,200,189,178,168,159,150,141,133,126,119,112
-	dw 106,100,94,89,84,79,75,71,67,63,59,56
-	dw 53,50,47,45,42,40,37,35,33,31,30,28
-	dw 26,25,24,22,21,20,19,18,17,16,15,14
-	dw 13,12,12,11,11,10,9,9,8,8,7,7
-	dw 7,6,6,6,5,5,5,4,4,4,4,4
-	dw 3,3,3,3,3,2,2,2,2,2,2,2
+	defw 4095,4095,4095,4095,4095,4095,4095,4095,4095,4030,3804,3591
+	defw 3389,3199,3019,2850,2690,2539,2397,2262,2135,2015,1902,1795
+	defw 1695,1599,1510,1425,1345,1270,1198,1131,1068,1008,951,898
+	defw 847,800,755,712,673,635,599,566,534,504,476,449
+	defw 424,400,377,356,336,317,300,283,267,252,238,224
+	defw 212,200,189,178,168,159,150,141,133,126,119,112
+	defw 106,100,94,89,84,79,75,71,67,63,59,56
+	defw 53,50,47,45,42,40,37,35,33,31,30,28
+	defw 26,25,24,22,21,20,19,18,17,16,15,14
+	defw 13,12,12,11,11,10,9,9,8,8,7,7
+	defw 7,6,6,6,5,5,5,4,4,4,4,4
+	defw 3,3,3,3,3,2,2,2,2,2,2,2
 	endif
 
 
 
 ;DE = Music
-PLY_Init
+PLY_Init:
 	if PLY_UseFirmwareInterruptions
-	ld hl,8				;Skip Header, SampleChannel, YM Clock (DB*3). The Replay Frequency is used in Interruption mode.
+	ld hl,8				;Skip Header, SampleChannel, YM Clock (defb*3). The Replay Frequency is used in Interruption mode.
 	add hl,de
 	ld de,PLY_ReplayFrequency + 1
 	ldi
 	else
-	ld hl,9				;Skip Header, SampleChannel, YM Clock (DB*3), and Replay Frequency.
+	ld hl,9				;Skip Header, SampleChannel, YM Clock (defb*3), and Replay Frequency.
 	add hl,de
 	endif
 
@@ -2532,7 +2538,7 @@ PLY_Init
 	ld (PLY_SpeedCpt + 1),a
 	ld (PLY_HeightCpt + 1),a
 
-	ld a,#ff
+	ld a,$ff
 	ld (PLY_PSGReg13),a
 	
 	;Set the Instruments pointers to Instrument 0 data (Header has to be skipped).
@@ -2551,7 +2557,7 @@ PLY_Init
 
 
 ;Stop the music, cut the channels.
-PLY_Stop
+PLY_Stop:
 	if PLY_SystemFriendly
 	call PLY_DisableInterruptions
 	ex af,af'
@@ -2563,7 +2569,7 @@ PLY_Stop
 	endif
 
 	ld hl,PLY_PSGReg8
-	ld bc,#0500
+	ld bc,$0500
 	ld (hl),c
 	inc hl
 	djnz $-2
@@ -2581,14 +2587,14 @@ PLY_Stop
 
 ;Initialize the Sound Effects.
 ;DE = SFX Music.
-PLY_SFX_Init
+PLY_SFX_Init:
 	;Find the Instrument Table.
 	ld hl,12
 	add hl,de
 	ld (PLY_SFX_Play_InstrumentTable + 1),hl
 	
 ;Clear the three channels of any sound effect.
-PLY_SFX_StopAll
+PLY_SFX_StopAll:
 	ld hl,0
 	ld (PLY_SFX_Track1_Instrument + 1),hl
 	ld (PLY_SFX_Track2_Instrument + 1),hl
@@ -2596,12 +2602,12 @@ PLY_SFX_StopAll
 	ret
 
 
-PLY_SFX_OffsetPitch equ 0
-PLY_SFX_OffsetVolume equ PLY_SFX_Track1_Volume - PLY_SFX_Track1_Pitch
-PLY_SFX_OffsetNote equ PLY_SFX_Track1_Note - PLY_SFX_Track1_Pitch
-PLY_SFX_OffsetInstrument equ PLY_SFX_Track1_Instrument - PLY_SFX_Track1_Pitch
-PLY_SFX_OffsetSpeed equ PLY_SFX_Track1_InstrumentSpeed - PLY_SFX_Track1_Pitch
-PLY_SFX_OffsetSpeedCpt equ PLY_SFX_Track1_InstrumentSpeedCpt - PLY_SFX_Track1_Pitch
+PLY_SFX_OffsetPitch: equ 0
+PLY_SFX_OffsetVolume: equ PLY_SFX_Track1_Volume - PLY_SFX_Track1_Pitch
+PLY_SFX_OffsetNote: equ PLY_SFX_Track1_Note - PLY_SFX_Track1_Pitch
+PLY_SFX_OffsetInstrument: equ PLY_SFX_Track1_Instrument - PLY_SFX_Track1_Pitch
+PLY_SFX_OffsetSpeed: equ PLY_SFX_Track1_InstrumentSpeed - PLY_SFX_Track1_Pitch
+PLY_SFX_OffsetSpeedCpt: equ PLY_SFX_Track1_InstrumentSpeedCpt - PLY_SFX_Track1_Pitch
 
 ;Plays a Sound Effects along with the music.
 ;A = No Channel (0,1,2)
@@ -2609,8 +2615,8 @@ PLY_SFX_OffsetSpeedCpt equ PLY_SFX_Track1_InstrumentSpeedCpt - PLY_SFX_Track1_Pi
 ;H = Volume (0...F)
 ;E = Note (0...143)
 ;D = Speed (0 = As original, 1...255 = new Speed (1 is fastest))
-;BC = Inverted Pitch (-#FFFF -> FFFF). 0 is no pitch. The higher the pitch, the lower the sound.
-PLY_SFX_Play
+;BC = Inverted Pitch (-$FFFF -> FFFF). 0 is no pitch. The higher the pitch, the lower the sound.
+PLY_SFX_Play:
 	ld ix,PLY_SFX_Track1_Pitch
 	or a
 	jr z,PLY_SFX_Play_Selected
@@ -2619,7 +2625,7 @@ PLY_SFX_Play
 	jr z,PLY_SFX_Play_Selected
 	ld ix,PLY_SFX_Track3_Pitch
 	
-PLY_SFX_Play_Selected
+PLY_SFX_Play_Selected:
 	ld (ix + PLY_SFX_OffsetPitch + 1),c	;Set Pitch
 	ld (ix + PLY_SFX_OffsetPitch + 2),b
 	ld a,e					;Set Note
@@ -2629,7 +2635,7 @@ PLY_SFX_Play_Selected
 	ld (ix + PLY_SFX_OffsetVolume),a
 	ld h,0					;Set Instrument Address
 	add hl,hl
-PLY_SFX_Play_InstrumentTable ld bc,0
+PLY_SFX_Play_InstrumentTable: ld bc,0
 	add hl,bc
 	ld a,(hl)
 	inc hl
@@ -2639,7 +2645,7 @@ PLY_SFX_Play_InstrumentTable ld bc,0
 	or a
 	jr nz,PLY_SFX_Play_UserSpeed
 	ld a,(hl)				;Get Speed
-PLY_SFX_Play_UserSpeed
+PLY_SFX_Play_UserSpeed:
 	ld (ix + PLY_SFX_OffsetSpeed + 1),a
 	ld (ix + PLY_SFX_OffsetSpeedCpt + 1),a
 	inc hl					;Skip Retrig
@@ -2652,7 +2658,7 @@ PLY_SFX_Play_UserSpeed
 ;Stops a sound effect on the selected channel
 ;E = No Channel (0,1,2)
 ;I used the E register instead of A so that Basic users can call this code in a straightforward way (call player+15, value).
-PLY_SFX_Stop
+PLY_SFX_Stop:
 	ld a,e
 	ld hl,PLY_SFX_Track1_Instrument + 1
 	or a
@@ -2663,7 +2669,7 @@ PLY_SFX_Stop
 	ld hl,PLY_SFX_Track3_Instrument + 1
 	dec a
 
-PLY_SFX_Stop_ChannelFound
+PLY_SFX_Stop_ChannelFound:
 	ld (hl),a
 	inc hl
 	ld (hl),a
@@ -2679,7 +2685,7 @@ PLY_SFX_Stop_ChannelFound
 ;Sets the Fade value.
 ;E = Fade value (0 = full volume, 16 or more = no volume).
 ;I used the E register instead of A so that Basic users can call this code in a straightforward way (call player+9/+18, value).
-PLY_SetFadeValue
+PLY_SetFadeValue:
 	ld a,e
 	ld (PLY_Channel1_FadeValue + 1),a
 	ld (PLY_Channel2_FadeValue + 1),a
@@ -2693,16 +2699,16 @@ PLY_SetFadeValue
 
 	if PLY_SystemFriendly
 ;Save Interrupt status and Disable Interruptions
-PLY_DisableInterruptions
+PLY_DisableInterruptions:
 	ld a,i
 	di
 	;IFF in P/V flag.
 	;Prepare opcode for DI.
-	ld a,#f3
+	ld a,$f3
 	jp po,PLY_DisableInterruptions_Set_Opcode
 	;Opcode for EI.
-	ld a,#fb
-PLY_DisableInterruptions_Set_Opcode
+	ld a,$fb
+PLY_DisableInterruptions_Set_Opcode:
 	ld (PLY_RestoreInterruption),a
 	ret
 	endif
@@ -2710,7 +2716,7 @@ PLY_DisableInterruptions_Set_Opcode
 
 ;A little convient interface for BASIC user, to allow them to use Sound Effects in Basic.
 	if PLY_UseBasicSoundEffectInterface
-PLY_BasicSoundEffectInterface_PlaySound
+PLY_BasicSoundEffectInterface_PlaySound:
 	ld c,(ix+0)	;Get Pitch
 	ld b,(ix+1)
 	ld d,(ix+2)	;Get Speed

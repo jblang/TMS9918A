@@ -1,29 +1,10 @@
-; Copyright 2018 J.B. Langston
-;
-; Permission is hereby granted, free of charge, to any person obtaining a 
-; copy of this software and associated documentation files (the "Software"), 
-; to deal in the Software without restriction, including without limitation 
-; the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-; and/or sell copies of the Software, and to permit persons to whom the 
-; Software is furnished to do so, subject to the following conditions:
-; 
-; The above copyright notice and this permission notice shall be included in
-; all copies or substantial portions of the Software.
-; 
-; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-; DEALINGS IN THE SOFTWARE.
+; ASCII table TMS9918A text mode example program
+; by J.B. Langston
 
-; @file hello.asm: hello world example program
-
-        org 100h
+        org $100
 
 ramtop:         equ $ffff
-bdos:           equ $0005
+bdos:           equ $5
 linelen:        equ 32
 dblhorizontal:  equ 205
 dblvertical:    equ 186
@@ -37,7 +18,7 @@ dblbottomright: equ 188
         jp start
 
 oldstack:
-        dw      0
+        defw    0
 
 tmsfont:
         include "tmsfont.asm"
@@ -61,7 +42,7 @@ start:
         ld      c, 6                            ; start at line 6
         push    af                              ; save current character
 nextline:
-        ld      a, (40-linelen)/2               ; center text
+        ld      a, ((40-linelen)/2)             ; center text
         ld      e, c                            ; on current line
         call    tmstextpos
         pop     af                              ; get current character
@@ -115,4 +96,4 @@ next:
         ret
 
 msg:    
-        db "ASCII Character Set", 0
+        defb "ASCII Character Set", 0

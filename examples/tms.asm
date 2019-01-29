@@ -26,11 +26,20 @@
 tmsram:         equ $be                 ; TMS9918A VRAM port
 tmsreg:         equ $bf                 ; TMS9918A register port
 
-tmswait:        equ 3                   ; Z80 clock divider
-                                        ; 1 for <= 10 MHz
-                                        ; 2 for <= 5 MHz
-                                        ; 3 for <= 3.33 MHz
-                                        ; ... and so on
+tmswait:        equ 1                   ; wait divisor
+
+; How this works: in the worst case scenario, the TMS9918A needs a delay of
+; at least 8us between VRAM accesses from the CPU.  I have counted CPU cycles
+; used by the code in this library and when the code doesn't produce enough
+; of a delay between memory accesses naturally, I inserted nops to increase
+; the delay.  The maximum number of nops added assume a 10MHz clock. When
+; using a slower clock, fewer nops would be required.  tmswait is used as
+; the divisor when calculating the number of nops, so a higher divisor 
+; results in fewer nops being inserted into the code. Conservative values:
+;        1 for <= 10 MHz
+;        2 for <= 5 MHz
+;        3 for <= 3.33 MHz
+;        ... and so on
 
 ; ---------------------------------------------------------------------------
 ; register constants
@@ -130,7 +139,7 @@ tmsintdisable:
 tmsconfig:
         ld      de, tmsshadow           ; start of shadow area
 	ld      c, 8                    ; 8 registers
-.regloop:
+regloop:
   	ld      a, (hl)                 ; get register value from table
 	out     (tmsreg), a             ; send it to the TMS
 	ld      a, 8                    ; calculate current register number
@@ -140,7 +149,7 @@ tmsconfig:
 	out     (tmsreg), a             ; send it to the TMS
         xor     a                       ; continue until count reaches 0
         or      c
-	jr      nz, .regloop
+	jr      nz, regloop
 	ret
 
 ; ---------------------------------------------------------------------------
@@ -163,7 +172,7 @@ tmswriteaddr:
 ;       BC = byte count (0 for null terminated)
 tmswrite:
         call    tmswriteaddr            ; set the starting address
-.copyloop:
+copyloop:
         ld      a, (hl)                 ; get the current byte from ram
         out     (tmsram), a             ; send it to vram
         defs    11/tmswait, 0         ; nops to waste time
@@ -171,7 +180,7 @@ tmswrite:
         dec     bc                      ; continue until count is zero
         ld      a, b
         or      c
-        jr      nz, .copyloop
+        jr      nz, copyloop
         ret
 
 ; ---------------------------------------------------------------------------
@@ -251,24 +260,24 @@ tmsreset:
         call    tmswriteaddr
         ld      de, $4000               ; write 16KB
         ld      bc, tmsram              ; writing 0s to vram
-.clearloop:
+clearloop:
         out     (c), b                  ; send to vram
         dec     de                      ; continue until counter is 0
         ld      a, d
         or      e
-        jr      nz, .clearloop
+        jr      nz, clearloop
         ret
 
 ; register values for multicolor mode
 tmsmcreg:
-	db      %00000000               ; external video disabled
-        db      %11001000               ; 16KB, display enabled, multicolor mode
-        db      $02                     ; name table at $8000
-        db      $00                     ; color table not used
-        db      $00                     ; pattern table at $0000
-        db      $76                     ; sprite attribute table at $3B00
-        db      $03                     ; sprite pattern table at $1800
-        db      $00                     ; black background
+	defb      %00000000               ; external video disabled
+        defb      %11001000               ; 16KB, display enabled, multicolor mode
+        defb      $02                     ; name table at $8000
+        defb      $00                     ; color table not used
+        defb      $00                     ; pattern table at $0000
+        defb      $76                     ; sprite attribute table at $3B00
+        defb      $03                     ; sprite pattern table at $1800
+        defb      $00                     ; black background
 
 ; initialize tms for multicolor mode 
 tmsmulticolor:
@@ -277,37 +286,37 @@ tmsmulticolor:
         call    tmswriteaddr
         ld      d, 6                    ; nametable has 6 different sections
         ld      e, 0                    ; first section starts at 0
-.sectionloop:
+sectionloop:
         ld      c, 4                    ; each section has 4 identical lines
-.lineloop:
+lineloop:
         ld      b, 32                   ; each line is 32 bytes long
         ld      a, e                    ; load the section's starting value
-.byteloop:
+byteloop:
         out     (tmsram), a             ; output current name byte
         nop                             ; extra time to finish vram write
         inc     a                       ; increment name byte
-        djnz    .byteloop               ; next byte
+        djnz    byteloop               ; next byte
         dec     c                       ; decrement line counter
-        jr      nz, .lineloop           ; next line
+        jr      nz, lineloop           ; next line
         ld      a, e                    ; next section's starting value is 32
         add     a, 32                   ; ...more than the previous section
         ld      e, a
         dec     d                       ; decrement section counter
-        jr      nz, .sectionloop        ; next section
+        jr      nz, sectionloop        ; next section
         ld      hl, tmsmcreg            ; switch to multicolor mode
         call    tmsconfig
         ret
 
 ; register values for bitmapped graphics
 tmsbitmapreg:
-        db      %00000010               ; bitmap mode, no external video
-        db      %11000010               ; 16KB ram; enable display
-        db      $0e                     ; name table at $3800
-        db      $ff                     ; color table at $2000
-        db      $03                     ; pattern table at $0
-        db      $76                     ; sprite attribute table at $3B00
-        db      $03                     ; sprite pattern table at $1800
-        db      $01                     ; black background
+        defb      %00000010               ; bitmap mode, no external video
+        defb      %11000010               ; 16KB ram; enable display
+        defb      $0e                     ; name table at $3800
+        defb      $ff                     ; color table at $2000
+        defb      $03                     ; pattern table at $0
+        defb      $76                     ; sprite attribute table at $3B00
+        defb      $03                     ; sprite pattern table at $1800
+        defb      $01                     ; black background
 
 ; initialize TMS for bitmapped graphics
 tmsbitmap:
@@ -316,25 +325,25 @@ tmsbitmap:
         call    tmswriteaddr            ; of 256 bytes ranging from 00-FF
         ld      b, 3
         ld      a, 0
-.nameloop:
+nameloop:
         out     (tmsram), a
         nop
         inc     a
-        jr      nz, .nameloop
-        djnz    .nameloop
+        jr      nz, nameloop
+        djnz    nameloop
         ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
         call    tmsconfig
         ret
 
 tmsgraph1reg:
-        db      %00000000               ; graphics 1 mode, no external video
-        db      %11000000               ; 16K, enable display, disable interrupt
-        db      $05                     ; name table at $1400
-        db      $80                     ; color table at $2000
-        db      $01                     ; pattern table at $800
-        db      $20                     ; sprite attribute table at $1000
-        db      $00                     ; sprite pattern table at $0
-        db      $01                     ; black background
+        defb      %00000000               ; graphics 1 mode, no external video
+        defb      %11000000               ; 16K, enable display, disable interrupt
+        defb      $05                     ; name table at $1400
+        defb      $80                     ; color table at $2000
+        defb      $01                     ; pattern table at $800
+        defb      $20                     ; sprite attribute table at $1000
+        defb      $00                     ; sprite pattern table at $0
+        defb      $01                     ; black background
 
 ; initialize TMS for graphics 1 mode
 tmsgraph1:
@@ -344,14 +353,14 @@ tmsgraph1:
         ret
 
 tmstextreg:
-        db      %00000000               ; text mode, no external video
-        db      %11010000               ; 16K, Enable Display, Disable Interrupt
-        db      $00                     ; name table at $0000
-        db      $00                     ; color table not used
-        db      $01                     ; pattern table at $0800
-        db      $00                     ; sprite attribute table not used
-        db      $00                     ; sprite pattern table not used
-        db      $F1                     ; white text on black background
+        defb      %00000000               ; text mode, no external video
+        defb      %11010000               ; 16K, Enable Display, Disable Interrupt
+        defb      $00                     ; name table at $0000
+        defb      $00                     ; color table not used
+        defb      $01                     ; pattern table at $0800
+        defb      $00                     ; sprite attribute table not used
+        defb      $00                     ; sprite pattern table not used
+        defb      $F1                     ; white text on black background
 
 ; initialize TMS for text mode
 ;       HL = address of font to load
