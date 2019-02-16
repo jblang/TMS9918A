@@ -36,10 +36,11 @@ tmswait:        equ 1                   ; wait divisor
 ; using a slower clock, fewer nops would be required.  tmswait is used as
 ; the divisor when calculating the number of nops, so a higher divisor 
 ; results in fewer nops being inserted into the code. Conservative values:
-;        1 for <= 10 MHz
-;        2 for <= 5 MHz
-;        3 for <= 3.33 MHz
-;        ... and so on
+;
+;    1 for <= 10 MHz
+;    2 for <= 5 MHz
+;    3 for <= 3.33 MHz
+;    ... and so on
 
 ; ---------------------------------------------------------------------------
 ; register constants
@@ -169,7 +170,7 @@ tmswriteaddr:
 ; copy bytes from ram to vram
 ;       HL = ram source address
 ;       DE = vram destination address
-;       BC = byte count (0 for null terminated)
+;       BC = byte count
 tmswrite:
         call    tmswriteaddr            ; set the starting address
 copyloop:
@@ -335,7 +336,7 @@ nameloop:
         call    tmsconfig
         ret
 
-tmsgraph1reg:
+tmstilereg:
         defb      %00000000               ; graphics 1 mode, no external video
         defb      %11000000               ; 16K, enable display, disable interrupt
         defb      $05                     ; name table at $1400
@@ -345,10 +346,10 @@ tmsgraph1reg:
         defb      $00                     ; sprite pattern table at $0
         defb      $01                     ; black background
 
-; initialize TMS for graphics 1 mode
-tmsgraph1:
+; initialize TMS for tiled graphics
+tmstile:
         call    tmsreset
-        ld      hl, tmsgraph1reg
+        ld      hl, tmstilereg
         call    tmsconfig
         ret
 

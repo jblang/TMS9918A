@@ -34,7 +34,7 @@ grid2:		defs gridsize
 
 start:
         ld      sp, ramtop
-        call    tmsgraph1
+        call    tmstile
 	
 	ld	de, pattbl		; load pattern table
 	ld	b, numcolors		; (one copy for each color)
