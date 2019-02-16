@@ -167,6 +167,16 @@ tmswriteaddr:
         out     (tmsreg), a             ; send msb
         ret
 
+; set the next address of vram to read
+;       DE = address
+tmsreadaddr:
+        ld      a, e                    ; send lsb
+        out     (tmsreg), a
+        ld      a, d                    ; mask off msb to max of 16KB
+        and     $3F
+        out     (tmsreg), a             ; send msb
+        ret
+
 ; copy bytes from ram to vram
 ;       HL = ram source address
 ;       DE = vram destination address
@@ -182,6 +192,22 @@ copyloop:
         ld      a, b
         or      c
         jr      nz, copyloop
+        ret
+
+; fill a section of memory with a single value
+;       A = value to fill
+;       DE = vram destination address
+;       BC = byte count
+tmsfill:
+        push    af
+        call    tmswriteaddr            ; set the starting address
+        pop     af
+fillloop:
+        out     (tmsram), a             ; send it to vram
+        defs    11/tmswait, 0           ; nops to waste time
+        dec     c
+        jp      nz, fillloop
+        djnz    fillloop                ; continue until count is zero
         ret
 
 ; ---------------------------------------------------------------------------
@@ -244,6 +270,80 @@ tmschrrpt:
 tmschrout:
         out     (tmsram), a
         defs    14/tmswait, 0
+        ret
+
+; ---------------------------------------------------------------------------
+; bitmap routines
+
+tmsclearpixel:  equ $A02F               ; cpl, and b
+tmssetpixel:    equ $00B0               ; nop, or b
+
+; set operation for tmsplotpixel to perform
+;       HL = pixel operation (tmsclearpixel, tmssetpixel)
+tmspixelop:
+        ld      (maskop), hl
+        ret
+
+; set or clear pixel at X, Y position
+;       B = Y position
+;       C = X position
+tmsplotpixel:
+        ld      a, b                    ; don't plot Y coord > 191
+        cp      192
+        ret     nc
+        call    tmsxyaddr               ; get address for X/Y coord
+        call    tmsreadaddr             ; set read within pattern table
+        ld      hl, masklookup          ; address of mask in table
+        ld      a, c                    ; get lower 3 bits of X coord
+        and     7
+        ld      b, 0
+        ld      c, a
+        add     hl, bc
+        ld      a, (hl)                 ; get mask in A
+        ld      c, tmsram               ; get previous byte in B
+        in      b, (c)
+maskop:
+        or      b                       ; mask bit in previous byte
+        ld      b, a
+        call    tmswriteaddr            ; set write address within pattern table
+        out     (c), b
+        ret
+masklookup:
+        defb 80h, 40h, 20h, 10h, 8h, 4h, 2h, 1h
+
+; set the color for a block of pixels in bitmap mode
+;       B = Y position
+;       C = X position
+;       A = foreground/background color to set
+tmspixelcolor:
+        call    tmsxyaddr
+        ld      hl, 2000h               ; add the color table base address
+        add     hl, de
+        ex      de, hl
+        call    tmswriteaddr            ; set write address within color table
+        out     (tmsram), a             ; send to TMS
+        ret
+
+; calculate address byte containing X/Y coordinate
+;       B = Y position
+;       C = X position
+;       returns address in DE
+tmsxyaddr:
+        ld      a, b                    ; d = (y / 8)
+        rrca
+        rrca
+        rrca
+        and     1fh
+        ld      d, a
+
+        ld      a, c                    ; e = (x & f8)
+        and     0f8h
+        ld      e, a
+
+        ld      a, b                    ; e += (y & 7)
+        and     7
+        or      e
+        ld      e, a
         ret
 
 ; ---------------------------------------------------------------------------
