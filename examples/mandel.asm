@@ -283,23 +283,21 @@ setbit:
                 ld      (bitindex), a           ; save it back in memory
                 ret     nz                      ; if this wasn't the last bit, we're done
 
-                ld      de, (xypos)             ; calculate address for current x, y position
-                ld      a, d                    ; h = (y / 8)
+                ld      bc, (xypos)             ; calculate address for current x, y position
+                ld      a, b                    ; d = (y / 8)
                 rrca
                 rrca
                 rrca
                 and     1fh
-                ld      h, a
-                ld      a, e                    ; l = (x & f8) + (y & 7)
+                ld      d, a
+                ld      a, c                    ; e = (x & f8) + (y & 7)
                 and     0f8h
-                ld      l, a
-                ld      a, d
-                and     7
-                ld      d, 0
                 ld      e, a
-                add     hl, de
+                ld      a, b
+                and     7
+                or      e
+                ld      e, a
 
-                ex      de, hl
                 call    tmswriteaddr            ; set write address within pattern table
                 ld      a, (pattern)            ; send the pattern to the TMS
                 out     (tmsram), a
