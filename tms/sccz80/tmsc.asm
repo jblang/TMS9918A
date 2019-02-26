@@ -19,7 +19,9 @@
 ; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 ; DEALINGS IN THE SOFTWARE.
 
-SECTION code
+; TODO: make this work with SCCZ80 calling convention
+
+SECTION code_lib
 
 PUBLIC _tmsintenable
 PUBLIC _tmsintdisable

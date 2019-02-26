@@ -36,8 +36,8 @@ extern "C" {
 // extern void tmsintenable();
 // extern void tmsintdisable();
 
-__DPROTO(`b,c,h,l,iyh,iyl',`b,c,h,l,iyh,iyl',void,,tmsintenable, void)
-__DPROTO(`b,c,h,l,iyh,iyl',`b,c,h,l,iyh,iyl',void,,tmsintdisable, void)
+__OPROTO(`b,c,h,l,iyh,iyl',`b,c,h,l,iyh,iyl',void,,tmsintenable, void)
+__OPROTO(`b,c,h,l,iyh,iyl',`b,c,h,l,iyh,iyl',void,,tmsintdisable, void)
 
 #define TMS_BITMAPCOLORTBL 0x2000
 #define TMS_BITMAPCOLORLEN 0x1800
@@ -71,8 +71,8 @@ enum tmscolors {
 // extern void tmsbackground(uint8_t color);
 // extern void tmstextcolor(uint8_t color);
 
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmsbackground,uint8_t color)
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmstextcolor,uint8_t color)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmsbackground,uint8_t color)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmstextcolor,uint8_t color)
 
 // extern void tmstextpos(uint8_t x, uint8_t y);
 // extern void tmsstrout(char *str);
@@ -80,8 +80,8 @@ __DPROTO(`iyh,iyl',`iyh,iyl',void,,tmstextcolor,uint8_t color)
 // extern void tmschrrpt(char chr, uint8_t count);
 
 __OPROTO(`iyh,iyl',`iyh,iyl',void,,tmstextpos,uint8_t x, uint8_t y)
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmsstrout,char *str)
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmschrout,char chr)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmsstrout,char *str)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmschrout,char chr)
 __OPROTO(`iyh,iyl',`iyh,iyl',void,,tmschrrpt,char chr, uint8_t count)
 
 #define TMS_CLEARPIXEL 0xA02F
@@ -91,7 +91,7 @@ __OPROTO(`iyh,iyl',`iyh,iyl',void,,tmschrrpt,char chr, uint8_t count)
 // extern void tmsplotpixel(uint8_t x, uint8_t y);
 // extern void tmspixelcolor(uint8_t x, uint8_t y, uint8_t color);
 
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmspixelop,uint16_t op)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmspixelop,uint16_t op)
 __OPROTO(`iyh,iyl',`iyh,iyl',void,,tmsplotpixel,uint8_t x, uint8_t y)
 __OPROTO(`iyh,iyl',`iyh,iyl',void,,tmspixelcolor,uint8_t x, uint8_t y, uint8_t color)
 
@@ -100,10 +100,10 @@ __OPROTO(`iyh,iyl',`iyh,iyl',void,,tmspixelcolor,uint8_t x, uint8_t y, uint8_t c
 // extern void tmstextmode(uint16_t font);
 // extern void tmstile();
 
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmsmulticolor,void)
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmsbitmap,void)
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmstextmode,uint16_t font)
-__DPROTO(`iyh,iyl',`iyh,iyl',void,,tmstile,void)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmsmulticolor,void)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmsbitmap,void)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmstextmode,uint16_t font)
+__OPROTO(`iyh,iyl',`iyh,iyl',void,,tmstile,void)
 
 #ifdef __cplusplus
 }

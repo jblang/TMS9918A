@@ -113,9 +113,13 @@ tmswhite:       equ $F
 ; ---------------------------------------------------------------------------
 ; register configuration routines
 
+SECTION data_lib
+
 ; shadow copy of register values
 tmsshadow:
         defs    8, 0
+
+SECTION code_lib
 
 ; set a single register value
 ;       A = register value
@@ -177,6 +181,8 @@ regloop:
 ; ---------------------------------------------------------------------------
 ; memory access routines
 
+SECTION code_lib
+
 ; set the next address of vram to write
 ;       DE = address
 asm_tmswriteaddr:
@@ -233,6 +239,9 @@ fillloop:
 
 ; ---------------------------------------------------------------------------
 ; text routines
+
+SECTION code_lib
+
 ; set text color
 ;       A = requested color
 asm_tmstextcolor:
@@ -295,6 +304,8 @@ asm_tmschrout:
 
 ; ---------------------------------------------------------------------------
 ; bitmap routines
+
+SECTION code_lib
 
 tmsclearpixel:  equ $A02F               ; cpl, and b
 tmssetpixel:    equ $00B0               ; nop, or b
@@ -370,9 +381,13 @@ asm_tmsxyaddr:
 ; ---------------------------------------------------------------------------
 ; initialization routines
 
+SECTION data_lib
+
 ; register values for blanked screen with 16KB RAM enabled
 tmsblankreg:
         defb    $00, $80, $00, $00, $00, $00, $00, $00
+
+SECTION code_lib
 
 ; reset registers and clear all 16KB of video memory
 asm_tmsreset:
@@ -390,6 +405,8 @@ resetloop:
         jr      nz, resetloop
         ret
 
+SECTION data_lib
+
 ; register values for multicolor mode
 asm_tmsmcreg:
 	    defb      %00000000             ; external video disabled
@@ -400,6 +417,8 @@ asm_tmsmcreg:
         defb      $76                   ; sprite attribute table at $3B00
         defb      $03                   ; sprite pattern table at $1800
         defb      $00                   ; black background
+
+SECTION code_lib
 
 ; initialize tms for multicolor mode 
 asm_tmsmulticolor:
@@ -429,6 +448,8 @@ byteloop:
         call    asm_tmsconfig
         ret
 
+SECTION data_lib
+
 ; register values for bitmapped graphics
 tmsbitmapreg:
         defb      %00000010             ; bitmap mode, no external video
@@ -439,6 +460,8 @@ tmsbitmapreg:
         defb      $76                   ; sprite attribute table at $3B00
         defb      $03                   ; sprite pattern table at $1800
         defb      $01                   ; black background
+
+SECTION code_lib
 
 ; initialize TMS for bitmapped graphics
 asm_tmsbitmap:
@@ -457,6 +480,8 @@ nameloop:
         call    asm_tmsconfig
         ret
 
+SECTION data_lib
+
 tmstilereg:
         defb      %00000000             ; graphics 1 mode, no external video
         defb      %11000000             ; 16K, enable display, disable interrupt
@@ -467,12 +492,16 @@ tmstilereg:
         defb      $00                   ; sprite pattern table at $0
         defb      $01                   ; black background
 
+SECTION code_lib
+
 ; initialize TMS for tiled graphics
 asm_tmstile:
         call    asm_tmsreset
         ld      hl, tmstilereg
         call    asm_tmsconfig
         ret
+
+SECTION data_lib
 
 tmstextreg:
         defb      %00000000               ; text mode, no external video
@@ -483,6 +512,8 @@ tmstextreg:
         defb      $00                     ; sprite attribute table not used
         defb      $00                     ; sprite pattern table not used
         defb      $F1                     ; white text on black background
+
+SECTION code_lib
 
 ; initialize TMS for text mode
 ;       HL = address of font to load
