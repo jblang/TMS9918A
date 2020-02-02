@@ -73,7 +73,9 @@ This configuration matches the port and interrupts used in the example programs 
 | `JP4` | Upper Pair | TMS9918A interrupts sent to INT |
 | `J7` | _None_ | This is the clock signal header |
 
-This configuration does not match the port and interrupts used in the example programs by default. Ports can be changed by setting `tmsram` and `tmsreg` constants in `tms.asm`. To use INT instead of NMI, you change `call nmisetup` to `call im1setup` in the example programs.
+This configuration does not work with the port and interrupts used in the example programs by default. To make the examples compatible with these jumper settings:
+- Set `tmsram` to 98 and `tmsreg` to 99 in `tms.asm`.
+- Change `call nmisetup` to `call im1setup` in the example program's setup routine to use INT instead of NMI.
 
 ### Port Address Jumpers
 
