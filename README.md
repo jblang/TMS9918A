@@ -47,7 +47,7 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
-## Configuration Jumpers
+## Jumper Description
 
 Here are recommended default jumper configurations.  See jumper description below for more detail on each jumper.
 
@@ -85,7 +85,7 @@ This configuration does not work with the port and interrupts used in the exampl
 * `JP2` configures address bit 3. In the upper position, it must be 1. In the lower position, it is ignored.  For MSX, you would set this to the upper position. For ColecoVision or Sord, you would set it to the lower position.
 
 ### Interrupt Configuration Jumper
-The jumper `JP4` is used to determine where the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. ColecoVision connects the video interrupt to NMI, so this change was necessary for compatibility.  MSX uses INT, and most other systems do as well.
+The jumper `JP4` is used to determine whether to send the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. ColecoVision connects the video interrupt to NMI whereas MSX uses INT, and most other systems do as well.
 
 **Warning**: It appears that the TMS9918A does not have an open collector interrupt output. If you have other cards that make use of the /INT line, such as the SIO card that comes with the RC2014 it's possible the TMS9918A will fight with other chips for control of the interrupt line, which will prevent proper operation and could potentially damage both chips. For safety, it is recommended to use NMI instead of INT in this case. REV4 of the board adds a diode to prevent this.
 
