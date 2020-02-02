@@ -47,30 +47,30 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
-## Jumper Descriptions
+## Configuration Jumpers
 
 Here are recommended default jumper configurations.  See jumper description below for more detail on each jumper.
 
 ### ColecoVision-compatible Configuration
-| Jumper | Jumper Block Configuration | Results |
+| Jumper | Jumper Block Position | Results |
 |---|---|---|
 | `J4` | 6th from left | Port A0-BF |
 | `J6` | Right | Upper half of port range selected by `J4` |
 | `JP1` | Lower | Ignore bits 1 and 2 |
 | `JP2` | Lower | Ignore bit 3 | 
-| `JP4` | Lower Pair | TMS9918A interrupts sent to NMI |
+| `JP4` | Lower | TMS9918A interrupts sent to NMI |
 | `J7` | _None_ | This is the clock signal header |
 
 This configuration matches the port and interrupts used in the example programs by default.
 
 ### MSX-compatible Configuration
-| Jumper | Jumper Block Configuration | Results |
+| Jumper | Jumper Block Position | Results |
 |---|---|---|
 | `J4` | 5th from left | Port 80-9F |
 | `J6` | Right | Upper half of port range selected by `J4` |
 | `JP1` | Upper | Ports 98 & 99 |
 | `JP2` | Upper | Ports 98 & 99 | 
-| `JP4` | Upper Pair | TMS9918A interrupts sent to INT |
+| `JP4` | Upper | TMS9918A interrupts sent to INT |
 | `J7` | _None_ | This is the clock signal header |
 
 This configuration does not work with the port and interrupts used in the example programs by default. To make the examples compatible with these jumper settings:
@@ -89,8 +89,10 @@ The jumper `JP4` is used to determine where the TMS9918A interrupt signal to eit
 
 **Warning**: It appears that the TMS9918A does not have an open collector interrupt output. If you have other cards that make use of the /INT line, such as the SIO card that comes with the RC2014 it's possible the TMS9918A will fight with other chips for control of the interrupt line, which will prevent proper operation and could potentially damage both chips. For safety, it is recommended to use NMI instead of INT in this case. REV4 of the board adds a diode to prevent this.
 
-### Clock Header 
-The optional `J7` header has pins (from left to right) for RC2014 CLK1 (REV4 only), CPUCLK, GROMCLK, EXTVDP, and GND. These pins can be used as follows:
+### Clock Header
+The optional `J7` header has pins (from left to right) for RC2014 CLK1 (REV4 only), CPUCLK, GROMCLK, EXTVDP, and GND. **No jumper block should normally be placed on this header.**
+
+These pins can be used as follows:
 
 - CPUCLK and GROMCLK provide 3.58MHz and 447 kHz clock signals, respectively. A jumper block can be placed on the RC2014 CLK1 and CPUCLK pins to use the TMS9918A's clock output as the RC2014's system clock (be sure to remove other clock sources if you do this). The clock signals could also be used by other boards via jumper cables.
 
