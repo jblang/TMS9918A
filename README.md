@@ -49,19 +49,31 @@ Aside from the board and the TMS9918A itself, all parts are available from Mouse
 
 ## Jumper Descriptions
 
-### Default Jumper Configurations
-The default jumper configurations for the RC2014 are below. 
+Here are recommended default jumper configurations.  See jumper description below for more detail on each jumper.
 
+### ColecoVision-compatible Configuration
+| Jumper | Jumper Block Configuration | Results |
+|---|---|---|
+| `J4` | 6th from left | Port A0-BF |
+| `J6` | Right | Upper half of port range selected by `J4` |
+| `JP1` | Lower | Ignore bits 1 and 2 |
+| `JP2` | Lower | Ignore bit 3 | 
+| `JP4` | Lower Pair | TMS9918A interrupts sent to NMI |
+| `J7` | _None_ | This is the clock signal header |
+
+This configuration matches the port and interrupts used in the example programs by default.
+
+### MSX-compatible Configuration
 | Jumper | Jumper Block Configuration | Results |
 |---|---|---|
 | `J4` | 5th from left | Port 80-9F |
 | `J6` | Right | Upper half of port range selected by `J4` |
 | `JP1` | Upper | Ports 98 & 99 |
 | `JP2` | Upper | Ports 98 & 99 | 
-| `JP4` | Lower Pair | TMS9918A interrupts sent to NMI |
+| `JP4` | Upper Pair | TMS9918A interrupts sent to INT |
 | `J7` | _None_ | This is the clock signal header |
 
-See jumper description at [the Hackaday.io article](https://hackaday.io/project/159057-rc9918/log/149923-new-board-revision) for more detail on each jumper.
+This configuration does not match the port and interrupts used in the example programs by default. Ports can be changed by setting `tmsram` and `tmsreg` constants in `tms.asm`. To use INT instead of NMI, you change `call nmisetup` to `call im1setup` in the example programs.
 
 ### Port Address Jumpers
 
