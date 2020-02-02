@@ -47,7 +47,7 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
-## Jumper Description
+## Jumper Descriptions
 
 Here are recommended default jumper configurations.  See jumper description below for more detail on each jumper.
 
