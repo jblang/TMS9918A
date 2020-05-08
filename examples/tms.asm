@@ -26,21 +26,14 @@
 tmsram:         equ $be                 ; TMS9918A VRAM port
 tmsreg:         equ $bf                 ; TMS9918A register port
 
-tmswait:        equ 1                   ; wait divisor
+tmswait:        equ 14                  ; number of nops to add after vram write
 
 ; How this works: in the worst case scenario, the TMS9918A needs a delay of
 ; at least 8us between VRAM accesses from the CPU.  I have counted CPU cycles
 ; used by the code in this library and when the code doesn't produce enough
 ; of a delay between memory accesses naturally, I inserted nops to increase
-; the delay.  The maximum number of nops added assume a 10MHz clock. When
-; using a slower clock, fewer nops would be required.  tmswait is used as
-; the divisor when calculating the number of nops, so a higher divisor 
-; results in fewer nops being inserted into the code. Conservative values:
-;
-;    1 for <= 10 MHz
-;    2 for <= 5 MHz
-;    3 for <= 3.33 MHz
-;    ... and so on
+; the delay.  14 nops are required with a 10MHz clock. When using a faster or
+; slower clock, the value of tmswait should be scaled accordingly.
 
 ; ---------------------------------------------------------------------------
 ; register constants
@@ -186,7 +179,7 @@ tmswrite:
 copyloop:
         ld      a, (hl)                 ; get the current byte from ram
         out     (tmsram), a             ; send it to vram
-        defs    11/tmswait, 0         ; nops to waste time
+        defs    tmswait, 0              ; nops to waste time
         inc     hl                      ; next byte
         dec     bc                      ; continue until count is zero
         ld      a, b
@@ -204,7 +197,7 @@ tmsfill:
         pop     af
 fillloop:
         out     (tmsram), a             ; send it to vram
-        defs    11/tmswait, 0           ; nops to waste time
+        defs    tmswait, 0              ; nops to waste time
         dec     c
         jp      nz, fillloop
         djnz    fillloop                ; continue until count is zero
@@ -252,7 +245,7 @@ tmsstrout:
         cp      0                       ; return when NULL is encountered
         ret     z
         out     (tmsram), a             ; send it to vram
-        defs    14/tmswait, 0         ; nops to waste time
+        defs    tmswait, 0              ; nops to waste time
         inc     hl                      ; next byte
         jr      tmsstrout
 
@@ -261,7 +254,7 @@ tmsstrout:
 ;       B = count
 tmschrrpt:
         out     (tmsram), a
-        defs    14/tmswait, 0
+        defs    tmswait, 0
         djnz    tmschrrpt
         ret
 
@@ -269,7 +262,7 @@ tmschrrpt:
 ;       A = character to output
 tmschrout:
         out     (tmsram), a
-        defs    14/tmswait, 0
+        defs    tmswait, 0
         ret
 
 ; ---------------------------------------------------------------------------
