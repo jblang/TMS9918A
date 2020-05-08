@@ -3,7 +3,6 @@
 
         org $100
 
-ramtop:         equ $ffff
 bdos:           equ $5
 linelen:        equ 32
 dblhorizontal:  equ 205
@@ -26,7 +25,7 @@ tmsfont:
 
 start:
 	ld	(oldstack),sp                   ; save old stack poitner
-        ld      sp, ramtop                      ; set up stack
+        ld      sp, stack                       ; set up stack
         ld      hl, tmsfont                     ; pointer to font
         call    tmstextmode                     ; initialize text mode
         ld      a, tmsdarkblue                  ; set blue background
@@ -97,3 +96,6 @@ next:
 
 msg:    
         defb "ASCII Character Set", 0
+
+        defs 32
+stack:

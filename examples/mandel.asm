@@ -4,12 +4,11 @@
 ;
 ; Adapted to TMS9918 by J.B. Langston
 
-ramtop:         equ     $ffff
 bdos:           equ     $0005
 
                 org     100h
                 ld      (oldstack),sp           ; save old stack pointer
-                ld      sp, ramtop              ; initailize stack
+                ld      sp, stack               ; initailize stack
                 jp      mandelbrot
 
                 include "tms.asm"               ; TMS subroutines
@@ -321,3 +320,6 @@ setbit:
                 add     hl, de
                 ld      (xypos), hl
                 ret
+
+                defs 32
+stack:
