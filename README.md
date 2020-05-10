@@ -55,13 +55,15 @@ Here are recommended default jumper configurations.  See jumper description belo
 | Jumper | Jumper Block Position | Results |
 |---|---|---|
 | `J4` | 6th from left | Port A0-BF |
-| `J6` | Right | Upper half of port range selected by `J4` |
+| `J6` | Right* | Upper half of port range selected by `J4` |
 | `JP1` | Lower | Ignore bits 1 and 2 |
 | `JP2` | Lower | Ignore bit 3 | 
 | `JP4` | Lower | TMS9918A interrupts sent to NMI |
 | `J7` | _None_ | This is the clock signal header |
 
 This configuration matches the port and interrupts used in the example programs by default.
+
+* Technically, the entire A0-BF range is assigned to the TMS9918A on a real ColecoVision, but all known games only use ports BE and BF, so it is safe to limit address decoding to B0-BF.
 
 ### MSX-compatible Configuration
 | Jumper | Jumper Block Position | Results |
@@ -75,7 +77,7 @@ This configuration matches the port and interrupts used in the example programs 
 
 This configuration does not work with the port and interrupts used in the example programs by default. To make the examples compatible with these jumper settings:
 - Set `tmsram` to 98 and `tmsreg` to 99 in `tms.asm`.
-- Change `call nmisetup` to `call im1setup` in the example program's setup routine to use INT instead of NMI.
+- Change `usenmi: equ 1` to `usenmi: equ 0` in the example programs `nyan.asm`, `plasma.asm`, and `sprite.asm` to use INT instead of NMI.
 
 ### Port Address Jumpers
 
@@ -87,7 +89,7 @@ This configuration does not work with the port and interrupts used in the exampl
 ### Interrupt Configuration Jumper
 The jumper `JP4` is used to determine whether to send the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. ColecoVision connects the video interrupt to NMI whereas MSX uses INT, and most other systems do as well.
 
-**Warning**: It appears that the TMS9918A does not have an open collector interrupt output. If you have other cards that make use of the /INT line, such as the SIO card that comes with the RC2014 it's possible the TMS9918A will fight with other chips for control of the interrupt line, which will prevent proper operation and could potentially damage both chips. For safety, it is recommended to use NMI instead of INT in this case. REV4 of the board adds a diode to prevent this.
+**Warning**: The TMS9918A does not have an open collector interrupt output. If you have other cards that make use of the /INT line, such as the SIO card that comes with the RC2014, it's possible the TMS9918A will fight with other chips for control of the interrupt line, which will prevent proper operation and could potentially damage both chips. For safety, it is recommended to use NMI instead of INT in this case. REV4 of the board adds a diode to prevent hardware damage; however, if multiple peripherals are generating interrupts, it could still lead to unpredictable software behavior.
 
 ### Clock Header
 The optional `J7` header has pins (from left to right) for RC2014 CLK1 (REV4 only), CPUCLK, GROMCLK, EXTVDP, and GND. **No jumper block should normally be placed on this header.**
