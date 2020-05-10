@@ -29,7 +29,6 @@ y_end:          equ     9 * (scale / 8) - 1     ; Maximum y-coordinate
 y_step:         equ     3                       ; y-coordinate step-width
 
 ; mandelbrot variables
-oldstack:        defw    0
 x:               defw    0                       ; x-coordinate
 y:               defw    0                       ; y-coordinate
 z_0:             defw    0
@@ -176,14 +175,17 @@ inner_loop_end:
                 add     hl, de
                 ld      (y), hl                 ; Store new y-value
 
-                jp      outer_loop
+                ld      c,6                     ; check for keypress
+                ld      e,0ffh
+                call    bdos
+                or      a
+
+                jp      z,outer_loop
 ; }
 
 mandel_end:
-        ld	sp,(oldstack)	                ; put stack back to how we found it
-        ;ld	c,$0			        ; this is the CP/M proper exit call
-        ;jp	bdos
-        halt
+                ld      sp,(oldstack)	        ; put stack back to how we found it
+                rst     0
 
 ;
 ;   Compute DEHL = BC * DE (signed): This routine is not too clever but it
@@ -320,6 +322,7 @@ setbit:
                 add     hl, de
                 ld      (xypos), hl
                 ret
-
-                defs 32
+oldstack:       
+                defw 0                
+                defs 64
 stack:
