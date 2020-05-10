@@ -3,7 +3,6 @@
 
         org $100
 
-bdos:           equ $5
 linelen:        equ 32
 dblhorizontal:  equ 205
 dblvertical:    equ 186
@@ -15,9 +14,6 @@ dblbottomright: equ 188
 
 
         jp start
-
-oldstack:
-        defw    0
 
 tmsfont:
         include "tmsfont.asm"
@@ -60,8 +56,7 @@ nextchar:
         jp      nextline                        ; do the next line
 done:
         ld	sp,(oldstack)	                ; put stack back to how we found it
-        ld	c,$0			        ; this is the CP/M proper exit call
-        jp	bdos
+        rst     0
 
 textborder:
         ld      a, 0                            ; start at upper left
@@ -97,5 +92,7 @@ next:
 msg:    
         defb "ASCII Character Set", 0
 
-        defs 32
+oldstack:
+        defw 0
+        defs 64
 stack:

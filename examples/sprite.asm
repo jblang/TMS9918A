@@ -1,11 +1,12 @@
 ; TMS9918A sprite example
 ; by J.B. Langston
 
-ramtop:         equ $ffff
+usenmi:		equ 1
 im1vect:        equ $38                 ; location of interrupt mode 1 vector
 nmivect:        equ $66
 frameticks:     equ 6                   ; number of interrupts per animation frame
 framecount:     equ 8                   ; number of frames in animation
+bdos:			equ 5
 
 	org $100
 
@@ -15,7 +16,8 @@ tmsfont:
 	include "tms.asm"
 
 start:
-	ld      sp, ramtop
+	ld	(oldstack),sp
+	ld      sp, stack
 	call    tmsbitmap
 	ld      bc, spritelen
 	ld      de, $1800
@@ -24,10 +26,21 @@ start:
 	ld      a, frameticks           ; initialize interrupt counter to frame length
 	ld      (tickcounter), a
 	ld      hl, inthandler          ; install the interrupt handler
+if	usenmi
 	call    nmisetup
+else
+	call	im1setup
+endif
 	call    tmsintenable            ; enable interrupts on TMS
 mainloop:
-	jr      mainloop                ; busy wait and let interrupts do their thing
+	halt
+	ld	c,6			; check for key press
+	ld	e,0ffh
+	call	bdos
+	or	a
+	jr      z,mainloop              ; busy wait and let interrupts do their thing
+	ld	sp,(oldstack)
+	rst	0
 
 ; set up interrupt mode 1 vector
 ;       HL = interrupt handler
@@ -50,10 +63,17 @@ nmisetup:
 
 ; interrupt handler: rotate animation frames
 inthandler:
+	ex	af,af'
+	exx
 	in      a, (tmsreg)             ; clear interrupt flag
 	call    drawframe               ; draw next frame, if it's time
-	ei
+	exx
+	ex	af,af'
+if	usenmi
+	retn
+else
 	reti
+endif
 
 tickcounter:
 	defb 0                       	; interrupt down counter
@@ -228,3 +248,8 @@ sprite:
 	defb  $00,$00,$00,$60,$30,$06,$8F,$0F
 	defb  $1F,$7F,$FE,$F8,$70,$20,$00,$00
 spritelen: equ $-sprite
+
+oldstack:
+        defw 0
+        defs 32
+stack:

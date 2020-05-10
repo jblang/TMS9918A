@@ -5,9 +5,10 @@
 ;
 ; Original source: https://github.com/74hc595/Ultim809/blob/master/code/user/plasma/plasma.asm
 
-ramtop:         equ $ffff
+usenmi:		equ 1
 im1vect:        equ $38                 ; location of interrupt mode 1 vector
 nmivect:        equ $66
+bdos:		equ 5
 
 sprpattbl:	equ $0
 pattbl:		equ $800
@@ -33,8 +34,9 @@ grid1:		defs gridsize		; grid buffers
 grid2:		defs gridsize
 
 start:
-        ld      sp, ramtop
-        call    tmstile
+	ld	(oldstack),sp
+	ld	sp, stack
+	call	tmstile
 	
 	ld	de, pattbl		; load pattern table
 	ld	b, numcolors		; (one copy for each color)
@@ -62,7 +64,11 @@ patloop:
 	ld	ix, 3			; divide by 3 counter
 
         ld      hl, inthandler		; setup interrupts
+if	usenmi
         call    nmisetup
+else
+	call	im1setup
+endif
         call    tmsintenable
 
 	ld	de, 0			; clear frame counter
@@ -91,7 +97,15 @@ flipbuffers:
 	ld	(curgrid), bc
 	ld	(nextgrid), hl
 	halt				; sync to interrupt
-        jr      mainloop		; next frame
+
+	ld	c,6                     ; check for keypress
+	ld	e,0ffh
+	call	bdos
+	or	a
+
+	jr	z,mainloop		; next frame
+	ld	sp,(oldstack)
+	rst	0
 
 gradient:				; diagonal gradient
 	ld 	a, b			; x
@@ -139,8 +153,8 @@ wave2:					; plasma 2
 	ld	l, a
 	ld	a, (hl)			; sin(sin(y + time) + time/3)
 	add	a, b			; sin(sin(y + time) + time/3) + sin(sin(X + time/3) + time)
-	pop bc
-	pop hl
+	pop	bc
+	pop	hl
 	ret
 
 ; set up interrupt mode 1 vector
@@ -149,10 +163,10 @@ im1setup:
         di
 	ld      a, $C3                  ; jump instruction
 	ld      (im1vect), a
-        ld      (im1vect+1), hl         ; load interrupt vector
+	ld      (im1vect+1), hl         ; load interrupt vector
 	im      1                       ; enable interrupt mode 1
         ei
-        ret
+	ret
 
 ; set up NMI vector
 ;       HL = interrupt handler
@@ -172,9 +186,12 @@ inthandler:
 	ld	bc, gridsize
 	call	tmswrite
 	ex	af, af'
-	exx	
-        ;ei				; uncomment if not using NMI
+	exx
+if	usenmi
+	retn
+else
         reti
+endif
 
 
 ; color table
@@ -366,3 +383,7 @@ sin8:
 	defb  -88,-86,-84,-81,-79,-76,-74,-71,-69,-66
 	defb  -63,-61,-58,-55,-52,-49,-46,-43,-40,-38
 	defb  -35,-31,-28,-25,-22,-19,-16,-13,-10,-7,-4,-1
+oldstack:
+	defw 0
+	defs 64
+stack:

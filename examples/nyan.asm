@@ -4,10 +4,13 @@
 
                 org $0100
 
+usenmi:         equ 1                   ; whether to use NMI or IRQ
+
 im1vect:        equ $38                 ; location of IM1 vector
 nmivect:        equ $66                 ; location of NMI vector
 frameticks:     equ 3                   ; number of interrupts per animation frame
 framecount:     equ 12                  ; number of frames in animation
+bdos:           equ 5
 
         jp      start
 
@@ -32,19 +35,31 @@ animation:
                 include "tms.asm"       ; TMS graphics routines
 
 start:
-	ld      sp, $FFFF
+        ld      (oldstack),sp
+	ld      sp, stack
         ld      de, music               ; initialize player
         call    PLY_Init
         ld      a, frameticks           ; initialize interrupt counter to frame length
         ld      (tickcounter), a
         ld      hl, inthandler          ; install the interrupt handler
+if      usenmi
         call    nmisetup
+else
+        call    im1setup
+endif
         call    tmsmulticolor           ; initialize tms for multicolor mode
         ld      a, tmsdarkblue          ; set background color
         call    tmsbackground
         call    tmsintenable            ; enable interrupts on TMS
 mainloop:
-        jr      mainloop                ; busy wait and let interrupts do their thing
+        halt
+        ld      c,6                     ; check for keypress
+        ld      e,0ffh
+        call    bdos
+        or      a
+        jr      z,mainloop              ; busy wait and let interrupts do their thing
+        ld      sp,(oldstack)
+        rst     0
 
 ; set up interrupt mode 1 vector
 ;       HL = interrupt handler
@@ -67,11 +82,22 @@ nmisetup:
 
 ; interrupt handler: rotate animation frames
 inthandler:
+        push    af
+        push    bc
+        push    de
+        push    hl
         call    PLY_Play                ; play one piece of song
         call    drawframe               ; draw next frame, if it's time
         in      a, (tmsreg)             ; clear interrupt flag
-        ei
+        pop     hl
+        pop     de
+        pop     bc
+        pop     af
+if      usenmi
+        retn
+else
         reti
+endif
 
 tickcounter:
         defb    0                       ; interrupt down counter
@@ -111,3 +137,7 @@ framewait:
         ld      hl, tickcounter          ; not time to switch animation frames yet
         dec     (hl)                    ; decrement down counter
         ret
+oldstack:
+        defw 0                
+        defs 64
+stack:
