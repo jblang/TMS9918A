@@ -104,6 +104,7 @@ flipbuffers:
 	or	a
 
 	jr	z,mainloop		; next frame
+	call	tmsintdisable
 	ld	sp,(oldstack)
 	rst	0
 

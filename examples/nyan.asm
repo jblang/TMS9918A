@@ -58,6 +58,7 @@ mainloop:
         call    bdos
         or      a
         jr      z,mainloop              ; busy wait and let interrupts do their thing
+        call    tmsintdisable
         ld      sp,(oldstack)
         rst     0
 
