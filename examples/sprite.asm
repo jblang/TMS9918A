@@ -6,7 +6,6 @@ im1vect:        equ $38                 ; location of interrupt mode 1 vector
 nmivect:        equ $66
 frameticks:     equ 6                   ; number of interrupts per animation frame
 framecount:     equ 8                   ; number of frames in animation
-bdos:			equ 5
 
 	org $100
 
@@ -34,14 +33,7 @@ endif
 	call    tmsintenable            ; enable interrupts on TMS
 mainloop:
 	halt
-	ld	c,6			; check for key press
-	ld	e,0ffh
-	call	bdos
-	or	a
-	jr      z,mainloop              ; busy wait and let interrupts do their thing
-	call	tmsintdisable
-	ld	sp,(oldstack)
-	rst	0
+	jr		mainloop
 
 ; set up interrupt mode 1 vector
 ;       HL = interrupt handler
@@ -57,6 +49,7 @@ im1setup:
 ; set up NMI vector
 ;       HL = interrupt handler
 nmisetup:
+	di
 	ld      a, $C3                  ; prefix with jump instruction
 	ld      (nmivect), a
 	ld      (nmivect+1), hl         ; load interrupt vector

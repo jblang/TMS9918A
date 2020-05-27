@@ -8,7 +8,6 @@
 usenmi:		equ 1
 im1vect:        equ $38                 ; location of interrupt mode 1 vector
 nmivect:        equ $66
-bdos:		equ 5
 
 sprpattbl:	equ $0
 pattbl:		equ $800
@@ -97,16 +96,7 @@ flipbuffers:
 	ld	(curgrid), bc
 	ld	(nextgrid), hl
 	halt				; sync to interrupt
-
-	ld	c,6                     ; check for keypress
-	ld	e,0ffh
-	call	bdos
-	or	a
-
-	jr	z,mainloop		; next frame
-	call	tmsintdisable
-	ld	sp,(oldstack)
-	rst	0
+	jr	mainloop
 
 gradient:				; diagonal gradient
 	ld 	a, b			; x
@@ -172,6 +162,7 @@ im1setup:
 ; set up NMI vector
 ;       HL = interrupt handler
 nmisetup:
+	di
 	ld      a, $C3                  ; jump instruction
 	ld      (nmivect), a
         ld      (nmivect+1), hl         ; load interrupt vector
