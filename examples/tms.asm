@@ -98,9 +98,11 @@ tmssetreg:
         add     hl, de                  ; add offset to selected register
         ld      (hl), a                 ; save to shadow slot
         out     (tmsreg), a             ; send to TMS
+        defs    tmswait, 0
         ld      a, tmsregbit            ; select requested register
         or      e
         out     (tmsreg), a
+        defs    tmswait, 0
         ret
 
 ; set the background color
@@ -136,11 +138,13 @@ tmsconfig:
 regloop:
   	ld      a, (hl)                 ; get register value from table
 	out     (tmsreg), a             ; send it to the TMS
+        defs    tmswait, 0
 	ld      a, 8                    ; calculate current register number
 	sub     c
 	or      tmsregbit               ; set high bit to indicate a register
         ldi                             ; shadow, then inc pointers and dec counter
 	out     (tmsreg), a             ; send it to the TMS
+        defs    tmswait, 0
         xor     a                       ; continue until count reaches 0
         or      c
 	jr      nz, regloop
@@ -154,10 +158,12 @@ regloop:
 tmswriteaddr:
         ld      a, e                    ; send lsb
         out     (tmsreg), a
+        defs    tmswait, 0
         ld      a, d                    ; mask off msb to max of 16KB
         and     $3F
         or      $40                     ; set second highest bit to indicate write
         out     (tmsreg), a             ; send msb
+        defs    tmswait, 0
         ret
 
 ; set the next address of vram to read
@@ -165,9 +171,11 @@ tmswriteaddr:
 tmsreadaddr:
         ld      a, e                    ; send lsb
         out     (tmsreg), a
+        defs    tmswait, 0
         ld      a, d                    ; mask off msb to max of 16KB
         and     $3F
         out     (tmsreg), a             ; send msb
+        defs    tmswait, 0
         ret
 
 ; copy bytes from ram to vram
@@ -300,6 +308,7 @@ maskop:
         ld      b, a
         call    tmswriteaddr            ; set write address within pattern table
         out     (c), b
+        defs    tmswait, 0
         ret
 masklookup:
         defb 80h, 40h, 20h, 10h, 8h, 4h, 2h, 1h
@@ -315,6 +324,7 @@ tmspixelcolor:
         ex      de, hl
         call    tmswriteaddr            ; set write address within color table
         out     (tmsram), a             ; send to TMS
+        defs    tmswait, 0
         ret
 
 ; calculate address byte containing X/Y coordinate
@@ -356,6 +366,7 @@ tmsreset:
         ld      bc, tmsram              ; writing 0s to vram
 clearloop:
         out     (c), b                  ; send to vram
+        defs    tmswait, 0
         dec     de                      ; continue until counter is 0
         ld      a, d
         or      e
@@ -387,7 +398,7 @@ lineloop:
         ld      a, e                    ; load the section's starting value
 byteloop:
         out     (tmsram), a             ; output current name byte
-        nop                             ; extra time to finish vram write
+        defs    tmswait, 0
         inc     a                       ; increment name byte
         djnz    byteloop               ; next byte
         dec     c                       ; decrement line counter
@@ -421,6 +432,7 @@ tmsbitmap:
         ld      a, 0
 nameloop:
         out     (tmsram), a
+        defs    tmswait, 0
         nop
         inc     a
         jr      nz, nameloop
