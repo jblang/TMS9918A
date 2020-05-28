@@ -1,6 +1,8 @@
 ; Z80 Mandelbrot with output to TMS9918 video chip
 ;
 ; Fixed point Mandelbrot routine from https://rosettacode.org/wiki/Mandelbrot_set#Z80_Assembly
+; Table-based multiplication for Z80 from http://www.cpcwiki.eu/index.php/Programming:Integer_Multiplication#Fast_8bit_.2A_8bit_Unsigned_with_only_512_bytes_of_tables
+; Z180 mlt instruction and table-based optimization added by Phillip Stevens (https://feilipu.me/)
 ;
 ; Adapted to TMS9918 by J.B. Langston
 
