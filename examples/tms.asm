@@ -26,14 +26,18 @@
 tmsram:         equ $be                 ; TMS9918A VRAM port
 tmsreg:         equ $bf                 ; TMS9918A register port
 
-tmswait:        equ 14                  ; number of nops to add after vram write
-
 ; How this works: in the worst case scenario, the TMS9918A needs a delay of
 ; at least 8us between VRAM accesses from the CPU.  I have counted CPU cycles
 ; used by the code in this library and when the code doesn't produce enough
 ; of a delay between memory accesses naturally, I inserted nops to increase
-; the delay.  14 nops are required with a 10MHz clock. When using a faster or
-; slower clock, the value of tmswait should be scaled accordingly.
+; the delay.
+; 
+; - 14 nops are required with a 10MHz Z80
+; - 56 nops are required with a 18.432MHz Z180
+; - 112 nops are required with a 36.864MHz Z180
+; - When using a faster or slower clock, scaled the value accordingly
+
+tmswait:        equ 14                  ; number of nops to add after vdp write
 
 ; ---------------------------------------------------------------------------
 ; register constants
