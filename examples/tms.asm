@@ -147,7 +147,7 @@ regloop:
         defs    tmswait, 0
         xor     a                       ; continue until count reaches 0
         or      c
-	jr      nz, regloop
+	jp      nz, regloop
 	ret
 
 ; ---------------------------------------------------------------------------
@@ -192,7 +192,7 @@ copyloop:
         dec     bc                      ; continue until count is zero
         ld      a, b
         or      c
-        jr      nz, copyloop
+        jp      nz, copyloop
         ret
 
 ; fill a section of memory with a single value
@@ -255,7 +255,7 @@ tmsstrout:
         out     (tmsram), a             ; send it to vram
         defs    tmswait, 0              ; nops to waste time
         inc     hl                      ; next byte
-        jr      tmsstrout
+        jp      tmsstrout
 
 ; repeat a character a certain number of times
 ;       A = character to output
@@ -370,7 +370,7 @@ clearloop:
         dec     de                      ; continue until counter is 0
         ld      a, d
         or      e
-        jr      nz, clearloop
+        jp      nz, clearloop
         ret
 
 ; register values for multicolor mode
@@ -402,12 +402,12 @@ byteloop:
         inc     a                       ; increment name byte
         djnz    byteloop               ; next byte
         dec     c                       ; decrement line counter
-        jr      nz, lineloop           ; next line
+        jp      nz, lineloop           ; next line
         ld      a, e                    ; next section's starting value is 32
         add     a, 32                   ; ...more than the previous section
         ld      e, a
         dec     d                       ; decrement section counter
-        jr      nz, sectionloop        ; next section
+        jp      nz, sectionloop        ; next section
         ld      hl, tmsmcreg            ; switch to multicolor mode
         call    tmsconfig
         ret
@@ -435,7 +435,7 @@ nameloop:
         defs    tmswait, 0
         nop
         inc     a
-        jr      nz, nameloop
+        jp      nz, nameloop
         djnz    nameloop
         ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
         call    tmsconfig
