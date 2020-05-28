@@ -6,8 +6,12 @@
 ;
 ; Adapted to TMS9918 by J.B. Langston
 
-usez180:        equ     0
-bdos:           equ     $0005
+usez180:        equ     0                       ; use Z180 multiply instruction
+useturbo:       equ     1                       ; use clock doubler on Z180 (no effect on Z80)
+dcntl:          equ     0f2h                    ; Z180 DMA control register address
+cmr:            equ     0deh                    ; Z180 clock multiplier register
+
+bdos:           equ     5
 
                 org     100h
                 ld      (oldstack),sp           ; save old stack pointer
@@ -44,7 +48,7 @@ z_1_square_low:  defw    0
 
 ; mandelbrot entry point
 mandelbrot:
-if usez180
+if usez180 & useturbo
                 call    gofast
 endif
                 call    tmsbitmap
@@ -182,13 +186,12 @@ inner_loop_end:
                 ld      c,6                     ; check for keypress
                 ld      e,0ffh
                 call    bdos
-                or      a
-
+                or      a                       ; and exit early if pressed
                 jp      z,outer_loop
 ; }
 
 mandel_end:
-if usez180
+if usez180 & useturbo
                 call    goslow
 endif
                 ld      sp,(oldstack)	        ; put stack back to how we found it
@@ -297,31 +300,37 @@ l_pos_hl:
    inc de
    ret
 
+if useturbo
+
+; Enable Z180 clock multiplier to overclock to 36.864MHz
 gofast:
                 push    bc
                 push    af
-                ld      bc, 0f2h
-                ld      a, 70h
+                ld      bc, dcntl       ; DCNTL register houses wait state settings
+                ld      a, 70h          ; 1 wait state for memory, 4 wait states for I/O
                 out     (c),a
-                ld      bc, 0deh
-                ld      a, 0ffh
+                ld      bc, cmr         ; CMR register contains clock X1/X2 bit
+                ld      a, 0ffh         ; set X2 bit (lower 7 bits reserved, all 1s)
                 out     (c),a
                 pop     af
                 pop     bc
                 ret
 
+; Disable Z180 clock multiplier to return to 18.432MHz
 goslow:
                 push    bc
                 push    af
-                ld      bc, 0deh
-                ld      a, 03fh
+                ld      bc, cmr         ; CMR register contains clock X1/X2 bit
+                ld      a, 03fh         ; clear X2 bit (lower 7 bits reserved, all 1s)
                 out     (c),a
-                ld      bc, 0f2h
-                ld      a, 10h
+                ld      bc, dcntl       ; DCNTL register houses wait state settings
+                ld      a, 10h          ; 0 wait states for memory, 2 wait states for I/O
                 out     (c),a
                 pop     af
                 pop     bc
                 ret
+
+endif
 
 else
 
