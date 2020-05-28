@@ -5,16 +5,13 @@
 ;
 ; Original source: https://github.com/74hc595/Ultim809/blob/master/code/user/plasma/plasma.asm
 
-usenmi:		equ 1
-im1vect:        equ $38                 ; location of interrupt mode 1 vector
-nmivect:        equ $66
-
 sprpattbl:	equ $0
 pattbl:		equ $800
 spratttbl:	equ $1000
 nametbl:	equ $1400
 colortbl:	equ $2000
 
+bdos:		equ 5
 gridwidth:	equ 32
 gridheight:	equ 24
 gridsize:	equ gridwidth*gridheight
@@ -62,14 +59,6 @@ patloop:
 	ld	(nextgrid), hl
 	ld	ix, 3			; divide by 3 counter
 
-        ld      hl, inthandler		; setup interrupts
-if	usenmi
-        call    nmisetup
-else
-	call	im1setup
-endif
-        call    tmsintenable
-
 	ld	de, 0			; clear frame counter
 mainloop:
 	ld	hl, (nextgrid)		; init cell pointer
@@ -95,8 +84,29 @@ flipbuffers:
 	ld	hl, (curgrid)
 	ld	(curgrid), bc
 	ld	(nextgrid), hl
-	halt				; sync to interrupt
-	jr	mainloop
+
+        in      a, (tmsreg)             ; clear vsync flag
+	defs	tmswait
+vsync:
+        in      a, (tmsreg)             ; wait for next vsync
+	and	80h
+	jr	z, vsync
+
+	push	de
+	ld	hl, (curgrid)		; copy current data into name table
+	ld	de, nametbl
+	ld	bc, gridsize
+	call	tmswrite
+	pop	de
+
+        ld      c,6                     ; check for keypress
+        ld      e,0ffh
+        call    bdos
+        or      a                       ; and exit early if pressed
+        jp      z,mainloop
+
+	ld	sp, (oldstack)
+	rst	0
 
 gradient:				; diagonal gradient
 	ld 	a, b			; x
@@ -148,42 +158,6 @@ wave2:					; plasma 2
 	pop	hl
 	ret
 
-; set up interrupt mode 1 vector
-;       HL = interrupt handler
-im1setup:
-        di
-	ld      a, $C3                  ; jump instruction
-	ld      (im1vect), a
-	ld      (im1vect+1), hl         ; load interrupt vector
-	im      1                       ; enable interrupt mode 1
-        ei
-	ret
-
-; set up NMI vector
-;       HL = interrupt handler
-nmisetup:
-	di
-	ld      a, $C3                  ; jump instruction
-	ld      (nmivect), a
-        ld      (nmivect+1), hl         ; load interrupt vector
-        ret
-
-; interrupt handler: rotate animation frames
-inthandler:
-	exx
-	ex	af, af'
-        in      a, (tmsreg)             ; clear interrupt flag
-	ld	hl, (curgrid)		; load name table
-	ld	de, nametbl
-	ld	bc, gridsize
-	call	tmswrite
-	ex	af, af'
-	exx
-if	usenmi
-	retn
-else
-        reti
-endif
 
 
 ; color table

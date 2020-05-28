@@ -4,18 +4,20 @@
 
                 org $0100
 
-usenmi:         equ 1                   ; whether to use NMI or IRQ
+useay:          equ 1                   ; whether to play music on the AY-3 card
 
-im1vect:        equ $38                 ; location of IM1 vector
-nmivect:        equ $66                 ; location of NMI vector
+bdos            equ 5                   ; bdos entry point
 frameticks:     equ 3                   ; number of interrupts per animation frame
 framecount:     equ 12                  ; number of frames in animation
 
         jp      start
 
+if useay
 music:
                 ; change incbin to binary for z88dk
                 incbin  "nyan/music.bin"     ; music data
+                include "arkos.asm"     ; Arkos player
+endif
 
 ; Change included binary for different cat
 animation:
@@ -30,68 +32,41 @@ animation:
                 ;incbin "nyan/nyanus.bin"    ; USA
                 ;incbin "nyan/nyanxx.bin"    ; Party Hat
 
-                include "arkos.asm"     ; Arkos player
                 include "tms.asm"       ; TMS graphics routines
 
 start:
-        ld      (oldstack),sp
+        ld      (oldstack),sp           ; set up stack
 	ld      sp, stack
-        ld      de, music               ; initialize player
-        call    PLY_Init
-        ld      a, frameticks           ; initialize interrupt counter to frame length
-        ld      (tickcounter), a
-        ld      hl, inthandler          ; install the interrupt handler
-if      usenmi
-        call    nmisetup
-else
-        call    im1setup
-endif
+
         call    tmsmulticolor           ; initialize tms for multicolor mode
         ld      a, tmsdarkblue          ; set background color
         call    tmsbackground
-        call    tmsintenable            ; enable interrupts on TMS
-mainloop:
-        halt
-        jr      mainloop
 
-; set up interrupt mode 1 vector
-;       HL = interrupt handler
-im1setup:
-        di
-	ld      a, $C3                  ; prefix with jump instruction
-	ld      (im1vect), a
-        ld      (im1vect+1), hl         ; load interrupt vector
-	im      1                       ; enable interrupt mode 1
-        ei
-        ret
+        ld      a, frameticks           ; initialize interrupt counter to frame length
+        ld      (tickcounter), a
 
-; set up NMI vector
-;       HL = interrupt handler
-nmisetup:
-        di
-	ld      a, $C3                  ; prefix with jump instruction
-	ld      (nmivect), a
-        ld      (nmivect+1), hl         ; load interrupt vector
-        ret
-
-; interrupt handler: rotate animation frames
-inthandler:
-        push    af
-        push    bc
-        push    de
-        push    hl
-        call    PLY_Play                ; play one piece of song
-        call    drawframe               ; draw next frame, if it's time
-        in      a, (tmsreg)             ; clear interrupt flag
-        pop     hl
-        pop     de
-        pop     bc
-        pop     af
-if      usenmi
-        retn
-else
-        reti
+if useay
+        ld      de, music               ; initialize player if music enabled
+        call    PLY_Init
 endif
+
+mainloop:
+        in      a, (tmsreg)             ; check for vblank status bit
+        and     80h
+        call    nz, drawframe           ; only update when it's set
+
+        ld      c,6                     ; check for keypress
+        ld      e,0ffh
+        call    bdos
+        or      a                       ; and exit early if pressed
+        jp      z,mainloop
+
+if useay
+        call    PLY_Stop
+endif
+        ld      sp, (oldstack)
+        rst     0
+
 
 tickcounter:
         defb    0                       ; interrupt down counter
@@ -102,6 +77,9 @@ currframe:
 ;       HL = animation data base address
 ;       A = current animation frame number
 drawframe:
+if useay
+        call    PLY_Play                ; play one piece of song
+endif
         ld      a, (tickcounter)        ; check if we've been called frameticks times
         or      a
         jr      nz, framewait           ; if not, wait to draw next animation frame
