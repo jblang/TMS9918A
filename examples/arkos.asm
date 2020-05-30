@@ -15,6 +15,7 @@
 ;       - The sound effect player hasn't been stabilised either (anyone cares?).
 
 ; Updated 1/28/2019 by J.B. Langston for compatibility with z80asm
+; Updated 5/30/2020 by J.B. Langston for compatibility with Z180 (define usez180: equ 1)
 
 ;	V1.02 additions
 ;	---------------
@@ -913,9 +914,16 @@ PLY_SFX_Track3_End:
 
 
 
-
+if usez180
+	push de
+	push ix
+	pop de
+	ld a,e
+	pop de
+else
 	;ld a,ixl			;Save the Register 7 of the Track 3.
 	defb $dd, $7d			; workaround code generation bug in z80asm
+endif
 	ex af,af'
 	
 
@@ -993,8 +1001,16 @@ PLY_SFX_Track2_End:
 
 	ex af,af'
 	add a,a			;Mix Reg7 from Track2 with Track3, making room first.
+if usez180
+	push de
+	push ix
+	pop de
+	or e
+	pop de
+else
 	;or ixl
 	defb $dd, $b5	; workaround code generation bug in z80asm
+endif
 	rla
 	ex af,af'
 
@@ -1081,8 +1097,16 @@ PLY_SFX_Track1_End:
 
 
 	ex af,af'
+if usez180
+	push de
+	push ix
+	pop de
+	or e
+	pop de
+else
 	;or ixl			;Mix Reg7 from Track3 with Track2+1.
 	defb $dd, $b5	; work around code generation bug in z80asm
+endif
 
 
 
@@ -1634,7 +1658,17 @@ PLY_PS_AfterLoopTest:
 
 	;Null Volume. It means no Sound. We stop the Sound, the Noise, and it's over.
 	ld (iy + 7),a			;We have to make the volume to 0, because if a bass Hard was activated before, we have to stop it.
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%1001
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%1001
+endif
 		;defs PLY_PS_Hard_TM - 19 - 3,0     ;=236
 		ld b,58
 		djnz $
@@ -1644,7 +1678,17 @@ PLY_PS_AfterLoopTest:
 PLY_PS_S_SoundOn:
 	;Volume is here, no Second Byte needed. It means we have a simple Software sound (Sound = On, Noise = Off)
 	;We have to test Arpeggio and Pitch, however.
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%1000
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%1000
+endif
 
 	sub d						;Code Volume.
 	jr nc,$+3
@@ -1665,7 +1709,17 @@ PLY_PS_S_SoundOn:
 
 
 PLY_PS_S_SecondByteNeeded:
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%1000
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%1000	;By defaut, No Noise, Sound.
+endif
 
 	;Second Byte needed.
 	ld c,(hl)
@@ -1679,7 +1733,17 @@ PLY_PS_S_SecondByteNeeded:
 		jr PLY_PS_S_SBN_NoNoise
 PLY_PS_S_SBN_NoNoise_NZ:
 	ld (PLY_PSGReg6),a
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%0000
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%0000					;Open Noise Channel.
+endif
 PLY_PS_S_SBN_NoNoise:
 
 	;Here we have either Volume and/or Sound. So first we need to read the Volume.
@@ -1694,8 +1758,18 @@ PLY_PS_S_SBN_NoNoise:
 	bit 5,c
 	jp nz,PLY_PS_S_SBN_Sound	;jr nz,PLY_PS_S_SBN_Sound
 	;No Sound. Stop here.
+if usez180
+	push de
+	push ix
+	pop de
+	inc e
+	push de
+	pop ix
+	pop de
+else
 	;inc ixl						;Set Sound bit to stop the Sound.
 	defb $dd,$2c 				; workaround code generation bug in z80asm
+endif
 		;defs PLY_PS_Hard_TM - 44 - 3,0     ;=211
 		ld b,52
 		djnz $
@@ -1759,7 +1833,17 @@ PLY_PS_Hard_NoRetrig:
 
 	;Hardware Sound.
 	ld (iy + 7),16					;Set Volume
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%1000
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%1000					;Sound is always On here (only Independence mode can switch it off).
+endif
 
 	;This code is common to both Software and Hardware Dependent.
 	ld c,(hl)			;Get Second Byte.
@@ -1855,7 +1939,17 @@ PLY_PS_SD_Noise_NZ:
 	ld a,(hl)
 	inc hl
 	ld (PLY_PSGReg6),a
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%0000
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%0000
+endif
 	ret
 
 
@@ -1977,15 +2071,34 @@ PLY_PS_Independent_TM: equ 224                   ;TM taken by this whole subrout
 	bit 7-2,b			;-2 Because the byte has been shifted previously.
 	jp nz,PLY_PS_I_SoundOn	;jr nz,PLY_PS_I_SoundOn
 	;No Sound ! It means we don't care about the software frequency (manual frequency, arpeggio, pitch).
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld c,%1001
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%1001
+endif
 		;defs 94 - 6,0
 		ld b,21
 		djnz $
 		defs 3,0
 	jr PLY_PS_I_SkipSoftwareFrequencyCalculation
 PLY_PS_I_SoundOn:
+if usez180
+	push bc
+	ld c,%1000			; Sound is on.
+	ld b,e			; Save the original note for the Hardware frequency, because a Software Arpeggio will modify it.
+	push bc
+	pop ix
+	pop bc
+else
 	ld ixl,%1000			;Sound is on.
 	ld ixh,e			;Save the original note for the Hardware frequency, because a Software Arpeggio will modify it.
+endif
 
 	;Calculate the Software frequency
 	bit 4-2,b			;Manual Frequency ? -2 Because the byte has been shifted previously.
@@ -1994,7 +2107,15 @@ PLY_PS_I_SoundOn:
 	ld (iy + 1),h
 	exx
 
+if usez180
+	push bc
+	push ix
+	pop bc
+	ld e,b
+	pop bc
+else
 	ld e,ixh
+endif
 PLY_PS_I_SkipSoftwareFrequencyCalculation:
 	ld b,(hl)			;Get Second Byte.
 	inc hl
@@ -2019,10 +2140,21 @@ PLY_PS_I_SkipSoftwareFrequencyCalculation:
 	ld a,(hl)
 	inc hl
 	ld (PLY_PSGReg6),a
+if usez180
+	push de
+	push ix
+	pop de
+	res 3,e
+	ld a,e
+	push de
+	pop ix
+	pop de
+else
 	;ld a,ixl	;Set the Noise bit.
 	defb $dd, $7d	; workaround code generation bug in z80asm
 	res 3,a
 	ld ixl,a
+endif
 	ret
 PLY_PS_I_NoNoise:
 		;defs 14,0
@@ -2199,11 +2331,21 @@ PLY_ReadTrack_ReadParameters:
 		defs 12-3, 0
 		jr PLY_ReadTrack_Pitch_End
 PLY_ReadTrack_Pitch_End_C:
+if usez180
+	push bc
+	ld c,(hl)		;Get PitchAdd
+	inc hl
+	ld b,(hl)
+	push bc
+	pop ix
+	pop bc
+else
 	ld b,(hl)		;Get PitchAdd
 	ld ixl,b
 	inc hl
 	ld b,(hl)
 	ld ixh,b
+endif
 	inc hl
 PLY_ReadTrack_Pitch_End:
 

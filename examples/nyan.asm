@@ -5,6 +5,8 @@
                 org $0100
 
 useay:          equ 1                   ; whether to play music on the AY-3 card
+usez180:        equ 0                   ; whether avoid undocumented opcodes for Z180 compatibility
+                                        ; note: if nyan exits back to CP/M on a Z180, set this to 1
 
 bdos            equ 5                   ; bdos entry point
 frameticks:     equ 3                   ; number of interrupts per animation frame
