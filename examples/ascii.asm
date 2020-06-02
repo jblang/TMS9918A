@@ -42,8 +42,7 @@ nextline:
         call    tmstextpos
         pop     af                              ; get current character
 nextchar:
-        out     (tmsram), a                     ; output current character
-        defs    tmswait, 0
+        call    tmsramout
         cp      255                             ; see if we have output everything
         jp      z, done
         inc     a                               ; next character
