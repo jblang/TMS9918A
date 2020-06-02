@@ -8,6 +8,9 @@
 *~
 _autosave-*
 *.tmp
+*-cache.lib
+*-rescue.lib
+*-rescue.dcm
 
 # Netlist files (exported from Eeschema)
 *.net
@@ -23,6 +26,10 @@ _autosave-*
 # Assembler output
 *.bin
 *.com
+*.COM
 *.hex
+*.ihx
+*.o
 *.out
 *.lst
+*.lis
