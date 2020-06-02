@@ -85,10 +85,9 @@ flipbuffers:
 	ld	(curgrid), bc
 	ld	(nextgrid), hl
 
-        in      a, (tmsreg)             ; clear vsync flag
-	defs	tmswait
 vsync:
-        in      a, (tmsreg)             ; wait for next vsync
+	ld	bc, (tmsregport)
+	in	a, (c)
 	and	80h
 	jr	z, vsync
 

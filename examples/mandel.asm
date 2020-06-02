@@ -624,8 +624,7 @@ setbit:
 
                 call    tmswriteaddr            ; set write address within pattern table
                 ld      a, (pattern)            ; send the pattern to the TMS
-                out     (tmsram), a
-                defs    tmswait, 0
+                call    tmsramout
 
                 ld      bc, 2000h               ; add the color table base address
                 ex      de, hl
@@ -639,7 +638,7 @@ setbit:
                 add     a, a
                 ld      hl, secondary           ; load secondary color into lower 4 bits
                 or      (hl)
-                out     (tmsram), a             ; send to TMS
+                call    tmsramout
 
                 ld      hl, (xypos)             ; increase next x/y position by 8 pixels
                 ld      de, 8

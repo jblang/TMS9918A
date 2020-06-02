@@ -1,5 +1,5 @@
 ; TMS9918A graphics subroutines
-; Copyright 2018 J.B. Langston
+; Copyright 2018-2020 J.B. Langston
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a 
 ; copy of this software and associated documentation files (the "Software"), 
@@ -19,31 +19,22 @@
 ; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 ; DEALINGS IN THE SOFTWARE.
 
+; VDP Programmer's Guide: http://map.grauw.nl/resources/video/ti-vdp-programmers-guide.pdf
 
 ; ---------------------------------------------------------------------------
-; configuration parameters
-
-tmsram:         equ $be                 ; TMS9918A VRAM port
-tmsreg:         equ $bf                 ; TMS9918A register port
-
-; How this works: in the worst case scenario, the TMS9918A needs a delay of
-; at least 8us between VRAM accesses from the CPU.  I have counted CPU cycles
-; used by the code in this library and when the code doesn't produce enough
-; of a delay between memory accesses naturally, I inserted nops to increase
-; the delay.
-; 
-; - 14 nops are required with a 10MHz Z80
-; - 56 nops are required with a 18.432MHz Z180
-; - 112 nops are required with a 36.864MHz Z180
-; - When using a faster or slower clock, scaled the value accordingly
-
-tmswait:        equ 14                  ; number of nops to add after vdp write
+; configuration parameters; can be changed at runtime
+tmsregport:
+        defb    0bfh                    ; port for TMS register
+tmsramport:
+        defb    0beh                    ; port for TMS vram
+tmsramwait:
+        defb    31                      ; iterations to wait after ram access
 
 ; ---------------------------------------------------------------------------
 ; register constants
 
-tmswritebit:    equ $40                 ; bit to indicate memory write
-tmsregbit:      equ $80                 ; bit to indicate register write
+tmswritebit:    equ 40h                 ; bit to indicate memory write
+tmsregbit:      equ 80h                 ; bit to indicate register write
 
 tmsctrl0:       equ 0                   ; control bits
 tmsmode3:       equ 1                   ;       mode bit 3
@@ -58,12 +49,12 @@ tmsmode2:       equ 3                   ;       mode bit 2
 tmssprsize:     equ 1                   ;       sprite size
 tmssprmag:      equ 0                   ;       sprite magnification
 
-tmsnametbl:     equ 2                   ; name table location (* $400)
-tmscolortbl:    equ 3                   ; color table location (* $40)
-                                        ;       graphics 2 mode: MSB 0 = $0000, MSB 1 = $2000
-tmspattern:     equ 4                   ; pattern table location (* $800)
-tmsspriteattr:  equ 5                   ; sprite attribute table (* $80)
-tmsspritepttn:  equ 6                   ; sprite pattern table (* $800)
+tmsnametbl:     equ 2                   ; name table location (* 400h)
+tmscolortbl:    equ 3                   ; color table location (* 40h)
+                                        ;       graphics 2 mode: MSB 0 = 0000h, MSB 1 = 2000h
+tmspattern:     equ 4                   ; pattern table location (* 800h)
+tmsspriteattr:  equ 5                   ; sprite attribute table (* 80h)
+tmsspritepttn:  equ 6                   ; sprite pattern table (* 800h)
 tmscolor:       equ 7                   ; screen colors (upper = text, lower = background)
 
 ; ---------------------------------------------------------------------------
@@ -79,12 +70,86 @@ tmsdarkred:     equ 6
 tmscyan:        equ 7
 tmsmedred:      equ 8
 tmslightred:    equ 9
-tmsdarkyellow:  equ $A
-tmslightyellow: equ $B
-tmsdarkgreen:   equ $C
-tmsmagenta:     equ $D
-tmsgray:        equ $E
-tmswhite:       equ $F
+tmsdarkyellow:  equ 0Ah
+tmslightyellow: equ 0Bh
+tmsdarkgreen:   equ 0Ch
+tmsmagenta:     equ 0Dh
+tmsgray:        equ 0Eh
+tmswhite:       equ 0Fh
+
+; ---------------------------------------------------------------------------
+; port I/O routines
+
+; These routines access the ports configured in tmsregport and tmsramport.
+
+; These memory locations can be set at runtime to support different
+; hardware configurations from the same binary.
+
+; tmsramin/tmsramout also include a configurable delay loop, which inserts
+; delays between VRAM writes to work properly with faster CPU speeds
+
+; The TMS9918A RAM must not be accessed more than once every 8 us or display 
+; corruption may occur.  During vblank and with the display disabled, 
+; accesses can be 2 us apart, but we will always use 8 us minimum delay.
+
+; Minimum time to execute each procedure call:
+; Z80: 88 cycles, 8.8 us @ 10 MHz
+; Z180: 80 cycles, 8.64 us @ 9.216 MHz, 4.32 us @ 18.432, 2.16 us @ 36.864
+;
+; Additional delay per djnz iteration:
+; Z80: 8 cycles * (iterations - 1)
+;       0.8 us @ 10 MHz
+; Z180: 7 cycles * (iterations - 1)
+;       0.756 us @ 9.216 MHz, 0.378 us @ 18.432, 0.189 us @ 36.864
+
+; Delay loop iterations required for different CPU configurations:
+; Z80 @ 10 MHz or less: 1
+; Z180 @ 9.216 MHz or less: 1
+; Z180 @ 18.432 MHz: 10
+; Z180 @ 36.864 MHz: 31
+
+; write to configured register port
+; parameters:
+;       A = value to write
+tmsregout:
+        push    bc
+        ld      bc, (tmsregport)
+        out     (c), a
+        pop     bc
+        ret
+
+; read from configured register port
+; returns:
+;       A = value read
+tmsregin:
+        push    bc
+        ld      bc, (tmsregport)
+        in      a, (c)
+        pop     bc
+        ret
+
+; write to configured VRAM port
+; parameters:
+;       A = value to write
+                                        ; Z80 | Z180 cycles...
+tmsramout:                              ; 17  | 16 (call)
+        push    bc                      ; 11  | 11
+        ld      bc, (tmsramport)        ; 20  | 18
+        out     (c), a                  ; 12  | 10
+tmsl1:  djnz    tmsl1                   ; 8   | 7  plus (13 | 9) * (iterations-1)
+        pop     bc                      ; 10  | 9
+        ret                             ; 10  | 9
+
+; read from configured VRAM port
+; returns:
+;       A =  value read
+tmsramin:
+        push    bc
+        ld      bc, (tmsramport)
+        in      a, (c)
+tmsl2:  djnz    tmsl2
+        pop     bc
+        ret
 
 ; ---------------------------------------------------------------------------
 ; register configuration routines
@@ -101,21 +166,19 @@ tmssetreg:
         ld      d, 0
         add     hl, de                  ; add offset to selected register
         ld      (hl), a                 ; save to shadow slot
-        out     (tmsreg), a             ; send to TMS
-        defs    tmswait, 0
+        call    tmsregout
         ld      a, tmsregbit            ; select requested register
         or      e
-        out     (tmsreg), a
-        defs    tmswait, 0
+        call    tmsregout
         ret
 
 ; set the background color
 ;       A = requested color
 tmsbackground:
-        and     $0F                     ; mask off high nybble
+        and     0Fh                     ; mask off high nybble
         ld      b, a                    ; save for later
         ld      a, (tmsshadow+tmscolor) ; get current colors
-        and     $F0                     ; mask off old background
+        and     0F0h                    ; mask off old background
         or      b                       ; set new background
         ld      e, tmscolor
         jp      tmssetreg               ; set the color
@@ -139,19 +202,16 @@ tmsintdisable:
 tmsconfig:
         ld      de, tmsshadow           ; start of shadow area
 	ld      c, 8                    ; 8 registers
-regloop:
-  	ld      a, (hl)                 ; get register value from table
-	out     (tmsreg), a             ; send it to the TMS
-        defs    tmswait, 0
+tmsl3: 	ld      a, (hl)                 ; get register value from table
+        call    tmsregout
 	ld      a, 8                    ; calculate current register number
 	sub     c
 	or      tmsregbit               ; set high bit to indicate a register
         ldi                             ; shadow, then inc pointers and dec counter
-	out     (tmsreg), a             ; send it to the TMS
-        defs    tmswait, 0
+        call    tmsregout
         xor     a                       ; continue until count reaches 0
         or      c
-	jp      nz, regloop
+	jp      nz, tmsl3
 	ret
 
 ; ---------------------------------------------------------------------------
@@ -161,25 +221,21 @@ regloop:
 ;       DE = address
 tmswriteaddr:
         ld      a, e                    ; send lsb
-        out     (tmsreg), a
-        defs    tmswait, 0
+        call    tmsregout
         ld      a, d                    ; mask off msb to max of 16KB
-        and     $3F
-        or      $40                     ; set second highest bit to indicate write
-        out     (tmsreg), a             ; send msb
-        defs    tmswait, 0
+        and     3Fh
+        or      40h                     ; set second highest bit to indicate write
+        call    tmsregout
         ret
 
 ; set the next address of vram to read
 ;       DE = address
 tmsreadaddr:
         ld      a, e                    ; send lsb
-        out     (tmsreg), a
-        defs    tmswait, 0
+        call    tmsregout
         ld      a, d                    ; mask off msb to max of 16KB
-        and     $3F
-        out     (tmsreg), a             ; send msb
-        defs    tmswait, 0
+        and     3Fh
+        call    tmsregout
         ret
 
 ; copy bytes from ram to vram
@@ -188,15 +244,13 @@ tmsreadaddr:
 ;       BC = byte count
 tmswrite:
         call    tmswriteaddr            ; set the starting address
-copyloop:
-        ld      a, (hl)                 ; get the current byte from ram
-        out     (tmsram), a             ; send it to vram
-        defs    tmswait, 0              ; nops to waste time
+tmsl4:  ld      a, (hl)                 ; get the current byte from ram
+        call    tmsramout
         inc     hl                      ; next byte
         dec     bc                      ; continue until count is zero
         ld      a, b
         or      c
-        jp      nz, copyloop
+        jp      nz, tmsl4
         ret
 
 ; fill a section of memory with a single value
@@ -207,12 +261,10 @@ tmsfill:
         push    af
         call    tmswriteaddr            ; set the starting address
         pop     af
-fillloop:
-        out     (tmsram), a             ; send it to vram
-        defs    tmswait, 0              ; nops to waste time
+tmsl5:  call    tmsramout
         dec     c
-        jp      nz, fillloop
-        djnz    fillloop                ; continue until count is zero
+        jp      nz, tmsl5
+        djnz    tmsl5                   ; continue until count is zero
         ret
 
 ; ---------------------------------------------------------------------------
@@ -226,7 +278,7 @@ tmstextcolor:
         add     a, a
         ld      b, a                    ; save for later
         ld      a, (tmsshadow+tmscolor) ; get current colors
-        and     $0F                     ; mask off old text color
+        and     0Fh                     ; mask off old text color
         or      b                       ; set new text color
         ld      e, tmscolor
         jp      tmssetreg               ; save it back
@@ -256,8 +308,7 @@ tmsstrout:
         ld      a, (hl)                 ; get the current byte from ram
         cp      0                       ; return when NULL is encountered
         ret     z
-        out     (tmsram), a             ; send it to vram
-        defs    tmswait, 0              ; nops to waste time
+        call    tmsramout
         inc     hl                      ; next byte
         jp      tmsstrout
 
@@ -265,23 +316,19 @@ tmsstrout:
 ;       A = character to output
 ;       B = count
 tmschrrpt:
-        out     (tmsram), a
-        defs    tmswait, 0
+        call    tmsramout
         djnz    tmschrrpt
         ret
 
 ; output a character
 ;       A = character to output
-tmschrout:
-        out     (tmsram), a
-        defs    tmswait, 0
-        ret
+tmschrout:      equ tmsramout
 
 ; ---------------------------------------------------------------------------
 ; bitmap routines
 
-tmsclearpixel:  equ $A02F               ; cpl, and b
-tmssetpixel:    equ $00B0               ; nop, or b
+tmsclearpixel:  equ 0A02Fh              ; cpl, and b
+tmssetpixel:    equ 0B0h                ; nop, or b
 
 ; set operation for tmsplotpixel to perform
 ;       HL = pixel operation (tmsclearpixel, tmssetpixel)
@@ -293,27 +340,27 @@ tmspixelop:
 ;       B = Y position
 ;       C = X position
 tmsplotpixel:
-        ld      a, b                    ; don't plot Y coord > 191
+        ld      a, b                    ; bail out if Y coord > 191
         cp      192
         ret     nc
-        call    tmsxyaddr               ; get address for X/Y coord
-        call    tmsreadaddr             ; set read within pattern table
+        call    tmsxyaddr               ; get address in DE for X/Y coord in BC
         ld      hl, masklookup          ; address of mask in table
         ld      a, c                    ; get lower 3 bits of X coord
         and     7
         ld      b, 0
         ld      c, a
         add     hl, bc
-        ld      a, (hl)                 ; get mask in A
-        ld      c, tmsram               ; get previous byte in B
-        in      b, (c)
+        ld      a, (hl)                 ; save mask in A
+        ld      b, a
+        call    tmsreadaddr             ; set read within pattern table
+        call    tmsramin
 maskop:
         or      b                       ; mask bit in previous byte
-        ld      b, a
+        nop                             ; place holder for 2 byte mask operation
         call    tmswriteaddr            ; set write address within pattern table
-        out     (c), b
-        defs    tmswait, 0
+        call    tmsramout
         ret
+
 masklookup:
         defb 80h, 40h, 20h, 10h, 8h, 4h, 2h, 1h
 
@@ -322,13 +369,15 @@ masklookup:
 ;       C = X position
 ;       A = foreground/background color to set
 tmspixelcolor:
-        call    tmsxyaddr
+        ld      a, b                    ; bail out if Y coord > 191
+        cp      192
+        ret     nc
+        call    tmsxyaddr               ; get address in DE for X/Y coord in BC
         ld      hl, 2000h               ; add the color table base address
         add     hl, de
         ex      de, hl
         call    tmswriteaddr            ; set write address within color table
-        out     (tmsram), a             ; send to TMS
-        defs    tmswait, 0
+        call    tmsramout
         ret
 
 ; calculate address byte containing X/Y coordinate
@@ -358,7 +407,7 @@ tmsxyaddr:
 
 ; register values for blanked screen with 16KB RAM enabled
 tmsblankreg:
-        defb    $00, $80, $00, $00, $00, $00, $00, $00
+        defb    0, 80h, 0, 0, 0, 0, 0, 0
 
 ; reset registers and clear all 16KB of video memory
 tmsreset:
@@ -366,94 +415,85 @@ tmsreset:
         call    tmsconfig
         ld      de, 0                   ; start a address 0000H
         call    tmswriteaddr
-        ld      de, $4000               ; write 16KB
-        ld      bc, tmsram              ; writing 0s to vram
-clearloop:
-        out     (c), b                  ; send to vram
-        defs    tmswait, 0
+        ld      de, 4000h               ; write 16KB
+tmsl6:  xor     a
+        call    tmsramout
         dec     de                      ; continue until counter is 0
         ld      a, d
         or      e
-        jp      nz, clearloop
+        jp      nz, tmsl6
         ret
 
 ; register values for multicolor mode
 tmsmcreg:
-	defb      %00000000               ; external video disabled
-        defb      %11001000               ; 16KB, display enabled, multicolor mode
-        defb      $02                     ; name table at $8000
-        defb      $00                     ; color table not used
-        defb      $00                     ; pattern table at $0000
-        defb      $76                     ; sprite attribute table at $3B00
-        defb      $03                     ; sprite pattern table at $1800
-        defb      $00                     ; black background
+	defb      %00000000             ; external video disabled
+        defb      %11001000             ; 16KB, display enabled, multicolor mode
+        defb      2                     ; name table at 8000h
+        defb      0                     ; color table not used
+        defb      0                     ; pattern table at 0000h
+        defb      76h                   ; sprite attribute table at 3B00h
+        defb      3                     ; sprite pattern table at 1800h
+        defb      0                     ; black background
 
 ; initialize tms for multicolor mode 
 tmsmulticolor:
         call    tmsreset                ; blank the screen and clear vram
-        ld      de, $0800               ; set name table start address
+        ld      de, 800h                ; set name table start address
         call    tmswriteaddr
         ld      d, 6                    ; nametable has 6 different sections
         ld      e, 0                    ; first section starts at 0
-sectionloop:
-        ld      c, 4                    ; each section has 4 identical lines
-lineloop:
-        ld      b, 32                   ; each line is 32 bytes long
-        ld      a, e                    ; load the section's starting value
-byteloop:
-        out     (tmsram), a             ; output current name byte
-        defs    tmswait, 0
-        inc     a                       ; increment name byte
-        djnz    byteloop               ; next byte
+tmsl7:  ld      c, 4                    ; each section has 4 identical lines
+tmsl8:  ld      b, 32                   ; each line is 32 bytes long
+        ld      a, e                    ; load starting value for line
+tmsl9:  call    tmsramout               ; write byte to name table
+        inc     a                       ; increment value for next byte
+        djnz    tmsl9                   ; next byte in line
         dec     c                       ; decrement line counter
-        jp      nz, lineloop           ; next line
-        ld      a, e                    ; next section's starting value is 32
-        add     a, 32                   ; ...more than the previous section
-        ld      e, a
+        jp      nz, tmsl8               ; next line in section
+        ld      a, e                    ; get previous section's starting value
+        add     a, 32                   ; increase by 32 for the next section
+        ld      e, a                    ; save it for later
         dec     d                       ; decrement section counter
-        jp      nz, sectionloop        ; next section
+        jp      nz, tmsl7               ; next section
         ld      hl, tmsmcreg            ; switch to multicolor mode
         call    tmsconfig
         ret
 
 ; register values for bitmapped graphics
 tmsbitmapreg:
-        defb      %00000010               ; bitmap mode, no external video
-        defb      %11000010               ; 16KB ram; enable display
-        defb      $0e                     ; name table at $3800
-        defb      $ff                     ; color table at $2000
-        defb      $03                     ; pattern table at $0
-        defb      $76                     ; sprite attribute table at $3B00
-        defb      $03                     ; sprite pattern table at $1800
-        defb      $01                     ; black background
+        defb      %00000010             ; bitmap mode, no external video
+        defb      %11000010             ; 16KB ram; enable display
+        defb      0eh                   ; name table at 3800h
+        defb      0ffh                  ; color table at 2000h
+        defb      3                     ; pattern table at 0
+        defb      76h                   ; sprite attribute table at 3B00h
+        defb      3                     ; sprite pattern table at 1800h
+        defb      1                     ; black background
 
 ; initialize TMS for bitmapped graphics
 tmsbitmap:
         call    tmsreset
-        ld      de, $3800               ; initialize nametable with 3 sets
+        ld      de, 3800h               ; initialize nametable with 3 sets
         call    tmswriteaddr            ; of 256 bytes ranging from 00-FF
         ld      b, 3
-        ld      a, 0
-nameloop:
-        out     (tmsram), a
-        defs    tmswait, 0
-        nop
+        xor     a
+tmsl10: call    tmsramout
         inc     a
-        jp      nz, nameloop
-        djnz    nameloop
+        jp      nz, tmsl10
+        djnz    tmsl10
         ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
         call    tmsconfig
         ret
 
 tmstilereg:
-        defb      %00000000               ; graphics 1 mode, no external video
-        defb      %11000000               ; 16K, enable display, disable interrupt
-        defb      $05                     ; name table at $1400
-        defb      $80                     ; color table at $2000
-        defb      $01                     ; pattern table at $800
-        defb      $20                     ; sprite attribute table at $1000
-        defb      $00                     ; sprite pattern table at $0
-        defb      $01                     ; black background
+        defb      %00000000             ; graphics 1 mode, no external video
+        defb      %11000000             ; 16K, enable display, disable interrupt
+        defb      5                     ; name table at 1400h
+        defb      80h                   ; color table at 2000h
+        defb      1                     ; pattern table at 800h
+        defb      20h                   ; sprite attribute table at 1000h
+        defb      0                     ; sprite pattern table at 0
+        defb      1                     ; black background
 
 ; initialize TMS for tiled graphics
 tmstile:
@@ -463,14 +503,14 @@ tmstile:
         ret
 
 tmstextreg:
-        defb      %00000000               ; text mode, no external video
-        defb      %11010000               ; 16K, Enable Display, Disable Interrupt
-        defb      $00                     ; name table at $0000
-        defb      $00                     ; color table not used
-        defb      $01                     ; pattern table at $0800
-        defb      $00                     ; sprite attribute table not used
-        defb      $00                     ; sprite pattern table not used
-        defb      $F1                     ; white text on black background
+        defb      %00000000             ; text mode, no external video
+        defb      %11010000             ; 16K, Enable Display, Disable Interrupt
+        defb      0                     ; name table at 0000
+        defb      0                     ; color table not used
+        defb      1                     ; pattern table at 0800h
+        defb      0                     ; sprite attribute table not used
+        defb      0                     ; sprite pattern table not used
+        defb      0F1h                  ; white text on black background
 
 ; initialize TMS for text mode
 ;       HL = address of font to load
@@ -478,9 +518,9 @@ tmstextmode:
         push    hl                      ; save address of font
         call    tmsreset
         pop     hl                      ; load font into pattern table
-        ld      de, $0800
-        ld      bc, $0800
+        ld      de, 800h
+        ld      bc, 800h
         call    tmswrite
-        ld hl,  tmstextreg
+        ld      hl, tmstextreg
         call    tmsconfig
         ret

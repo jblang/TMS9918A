@@ -25,7 +25,8 @@ start:
 	ld      (tickcounter), a
 
 mainloop:
-        in      a, (tmsreg)             ; check for vblank status bit
+        ld      bc, (tmsregport)
+        in      a, (c)                  ; check for vblank status bit
         and     80h
         call    nz, drawframe           ; only update when it's set
 

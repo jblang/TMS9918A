@@ -25,14 +25,14 @@ endif
 animation:
                 ; change incbin to binary for z88dk
                 incbin  "nyan/nyan.bin"      ; The Classic
-                ;incbin "nyan/nyands.bin"    ; Skrillex?
+                ;incbin "nyan/nyands.bin"    ; Skrillex
                 ;incbin "nyan/nyanfi.bin"    ; Finland
                 ;incbin "nyan/nyangb.bin"    ; Gameboy
-                ;incbin "nyan/nyanlb.bin"    ; France
-                ;incbin "nyan/nyann1.bin"    ; France
-                ;incbin "nyan/nyann2.bin"    ; Hmm... France, and cheese, ...and bananas?
+                ;incbin "nyan/nyanlb.bin"    ; Netherlands, light background
+                ;incbin "nyan/nyann1.bin"    ; Netherlands
+                ;incbin "nyan/nyann2.bin"    ; Cheese Cat
                 ;incbin "nyan/nyanus.bin"    ; USA
-                ;incbin "nyan/nyanxx.bin"    ; Party Hat
+                ;incbin "nyan/nyanxx.bin"    ; Nyanicorn
 
                 include "tms.asm"       ; TMS graphics routines
 
@@ -53,7 +53,8 @@ if useay
 endif
 
 mainloop:
-        in      a, (tmsreg)             ; check for vblank status bit
+        ld      bc, (tmsregport)
+        in      a, (c)                  ; check for vblank status bit
         and     80h
         call    nz, drawframe           ; only update when it's set
 
