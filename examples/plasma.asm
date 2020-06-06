@@ -86,8 +86,7 @@ flipbuffers:
 	ld	(nextgrid), hl
 
 vsync:
-	ld	bc, (tmsregport)
-	in	a, (c)
+	call	tmsregin
 	and	80h
 	jr	z, vsync
 

@@ -53,8 +53,7 @@ if useay
 endif
 
 mainloop:
-        ld      bc, (tmsregport)
-        in      a, (c)                  ; check for vblank status bit
+        call    tmsregin
         and     80h
         call    nz, drawframe           ; only update when it's set
 

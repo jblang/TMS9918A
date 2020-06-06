@@ -25,10 +25,9 @@ start:
 	ld      (tickcounter), a
 
 mainloop:
-        ld      bc, (tmsregport)
-        in      a, (c)                  ; check for vblank status bit
-        and     80h
-        call    nz, drawframe           ; only update when it's set
+	call    tmsregin                ; check for vsync flag
+	and     80h
+	call    nz, drawframe           ; only update when it's set
 
 	ld	c,6                     ; check for keypress
 	ld	e,0ffh
@@ -215,6 +214,6 @@ sprite:
 spritelen: equ $-sprite
 
 oldstack:
-        defw 0
-        defs 32
+		defw 0
+		defs 32
 stack:

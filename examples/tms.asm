@@ -23,12 +23,10 @@
 
 ; ---------------------------------------------------------------------------
 ; configuration parameters; can be changed at runtime
-tmsregport:
-        defb    0bfh                    ; port for TMS register
-tmsramport:
-        defb    0beh                    ; port for TMS vram
-tmsramwait:
-        defb    31                      ; iterations to wait after ram access
+tmsport:
+        defb    0beh                    ; port for TMS vram (reg is 1 higher)
+tmswait:
+        defb    10                      ; iterations to wait after ram access
 
 ; ---------------------------------------------------------------------------
 ; register constants
@@ -80,13 +78,13 @@ tmswhite:       equ 0Fh
 ; ---------------------------------------------------------------------------
 ; port I/O routines
 
-; These routines access the ports configured in tmsregport and tmsramport.
+; These routines access the ports configured in tmsport.
+; tmsramin/tmsramout also include a configurable delay loop, which inserts
+; delays between VRAM writes to work properly with faster CPU speeds
+
 
 ; These memory locations can be set at runtime to support different
 ; hardware configurations from the same binary.
-
-; tmsramin/tmsramout also include a configurable delay loop, which inserts
-; delays between VRAM writes to work properly with faster CPU speeds
 
 ; The TMS9918A RAM must not be accessed more than once every 8 us or display 
 ; corruption may occur.  During vblank and with the display disabled, 
@@ -113,7 +111,8 @@ tmswhite:       equ 0Fh
 ;       A = value to write
 tmsregout:
         push    bc
-        ld      bc, (tmsregport)
+        ld      bc, (tmsport)
+        inc     c
         out     (c), a
         pop     bc
         ret
@@ -123,7 +122,8 @@ tmsregout:
 ;       A = value read
 tmsregin:
         push    bc
-        ld      bc, (tmsregport)
+        ld      bc, (tmsport)
+        inc     c
         in      a, (c)
         pop     bc
         ret
@@ -134,7 +134,7 @@ tmsregin:
                                         ; Z80 | Z180 cycles...
 tmsramout:                              ; 17  | 16 (call)
         push    bc                      ; 11  | 11
-        ld      bc, (tmsramport)        ; 20  | 18
+        ld      bc, (tmsport)           ; 20  | 18
         out     (c), a                  ; 12  | 10
 tmsl1:  djnz    tmsl1                   ; 8   | 7  plus (13 | 9) * (iterations-1)
         pop     bc                      ; 10  | 9
@@ -145,7 +145,7 @@ tmsl1:  djnz    tmsl1                   ; 8   | 7  plus (13 | 9) * (iterations-1
 ;       A =  value read
 tmsramin:
         push    bc
-        ld      bc, (tmsramport)
+        ld      bc, (tmsport)
         in      a, (c)
 tmsl2:  djnz    tmsl2
         pop     bc
