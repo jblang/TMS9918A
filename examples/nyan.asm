@@ -1,12 +1,12 @@
-; Nyan Cat for RC2014 with TMS9918 and YM2149
+; Nyan Cat for RC2014 and SC126 with TMS9918 and YM2149
 ; Hand-written assembly by J.B. Langston
-; Images and music from Nyan Cat for MSX: https://www.msx.org/news/en/nyan-cat-msx
+; Nyan Cat images from Passan Kiskat by Dromedaar Vision: http://www.dromedaar.com/
+; Nyan Cat theme by Karbofos: https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/
+; PTx Player by S.V.Bulba <vorobey@mail.khstu.ru>
 
                 org $0100
 
 useay:          equ 1                   ; whether to play music on the AY-3 card
-usez180:        equ 0                   ; whether avoid undocumented opcodes for Z180 compatibility
-                                        ; note: if nyan exits back to CP/M on a Z180, set this to 1
 
 bdos            equ 5                   ; bdos entry point
 frameticks:     equ 3                   ; number of interrupts per animation frame
@@ -14,12 +14,9 @@ framecount:     equ 12                  ; number of frames in animation
 
         jp      start
 
-if useay
-music:
                 ; change incbin to binary for z88dk
-                incbin  "nyan/music.bin"     ; music data
-                include "arkos.asm"     ; Arkos player
-endif
+                include "PT3.asm"               ; PT3 player
+                incbin  "nyan/nyan.pt3"         ; music data
 
 ; Change included binary for different cat
 animation:
@@ -48,13 +45,22 @@ start:
         ld      (tickcounter), a
 
 if useay
-        ld      de, music               ; initialize player if music enabled
-        call    PLY_Init
+        call    START
+        call    timer
+        ld      (last),a
 endif
 
 mainloop:
+if useay
+        call    timer
+        ld      hl, last
+        cp      (hl)
+        ld      (hl), a
+        call    nz, PLAY                 ; play one piece of song
+endif
+
         call    tmsregin
-        and     80h
+        and     80h                     ; check for vblank status bit
         call    nz, drawframe           ; only update when it's set
 
         ld      c,6                     ; check for keypress
@@ -64,11 +70,18 @@ mainloop:
         jp      z,mainloop
 
 if useay
-        call    PLY_Stop
+        call    MUTE
 endif
         ld      sp, (oldstack)
         rst     0
 
+last:   defb    0
+
+timer:  ld      b, 0f8h                 ; BIOS SYSGET function
+        ld      c, 0d0h                 ; TIMER sub-function
+        rst     8                       ; Call BIOS
+        ld      a, l                    ; MSB to A
+        ret                             ; Return to loop
 
 tickcounter:
         defb    0                       ; interrupt down counter
@@ -79,9 +92,6 @@ currframe:
 ;       HL = animation data base address
 ;       A = current animation frame number
 drawframe:
-if useay
-        call    PLY_Play                ; play one piece of song
-endif
         ld      a, (tickcounter)        ; check if we've been called frameticks times
         or      a
         jr      nz, framewait           ; if not, wait to draw next animation frame
