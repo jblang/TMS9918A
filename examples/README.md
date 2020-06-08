@@ -1,12 +1,16 @@
 # TMS9918A Example Programs
 
-Here I provide assembly and C libraries for use with my TMS9918A video card. I have also tried to come up with fun ways to demonstrate the various aspects of programming the TMS9918A video chip in the various examples.
+Here I provide assembly and C libraries for use with my TMS9918A video card. They have been tested using my TMS9918A card with Steve Cousin's [SC126](https://smallcomputercentral.wordpress.com/sc126-z180-motherboard-rc2014/) Z180 motherboard, with Spencer Owen's [RC2014 Zed](https://www.tindie.com/products/semachthemonkey/rc2014-zed-homebrew-z80-computer-kit/) kit, and with my own [z80ctrl](https://github.com/jblang/z80ctrl) board. The demos will automatically detect the TMS9918A on common ports (ColecoVision on 0xBE, MSX on 0x98, Sord M5 on 0x10, or Tatung Einstein on 0x8).  The demos also auto-detect a Z180 processor and some demos use the enhanced features the Z180 provides.
+
+I have tried to come up with fun ways to demonstrate the various aspects of programming the TMS9918A video chip in the various examples.
 
 ## Libraries
 
 ### Assembly
 
-- `tms.asm`: Reusable TMS9918A library; used by all the examples.
+- `tms.asm`: Reusable TMS9918A library.
+- `z180.asm`: Reusable Z180 library.
+- `utility.asm`: Resuable BDOS and utility library.
 - `tmsfont.asm`: 6x8 bitmap font for use in text mode.
 
 ### C
@@ -22,8 +26,8 @@ Here I provide assembly and C libraries for use with my TMS9918A video card. I h
 - `ascii.asm`: ASCII character set. Demonstrates text mode.
 - `mandel.asm`: Mandelbrot renderer. Demonstrates pseudo-bitmap graphics (Graphics II Mode).
 - `nyan.asm`: Nyan Cat. Demonstrates multi-color mode. Change the `incbin` directives to `binary` for z88dk's assembler.
-- `arkos.asm`: Arkos music player. Used to play the Nyan Cat theme on YM2149.
-- `plasma.asm`: Plasma effect. Demonstrates tiled graphics (Graphics II Mode).
+- `PT3.asm`: PTx music player. Used to play the Nyan Cat theme on YM2149.
+- `plasma.asm`: Plasma effect. Demonstrates tiled graphics (Graphics I Mode).
 - `sprite.asm`: Bouncing globe. Demonstrates sprites.
 
 I have tried to stick to a common subset of assembler features that will work with any of the following cross-assemblers:
@@ -53,11 +57,11 @@ The BASIC examples require the graphic primitives of [MSX-BASIC](https://en.wiki
 
 ## Credits
 
-- `nyan.asm` uses [Arkos Player 1.0](http://www.julien-nevo.com/arkos/arkostracker1/) by Targhan. Nyan Cat images and song taken from [Nyan Cat for MSX](https://www.msx.org/news/en/nyan-cat-msx) by Dromedaar Vision.
+- `nyan.asm` uses [PtxTools](https://bulba.untergrund.net/progr_e.htm) by Sergey Bulba. Nyan Cat animations from Passan Kiskat by [Dromedaar Vision](http://www.dromedaar.com/). Nyan Cat theme by [Karbofos](https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/).
 - `tmsfont.asm` and `font.h` come from [Raster Fonts](https://github.com/idispatch/raster-fonts) by Oleg Kosenov.
-- `mandel.asm` uses fixed point Mandelbrot routine originally from [Rosetta Code](https://rosettacode.org/wiki/Mandelbrot_set#Z80_Assembly).
+- `mandel.asm` uses fixed point Mandelbrot routine originally from [Rosetta Code](https://rosettacode.org/wiki/Mandelbrot_set#Z80_Assembly).  It has been enhanced with table-based multiplication from [CPC Wiki](http://www.cpcwiki.eu/index.php/Programming:Integer_Multiplication#Fast_8bit_.2A_8bit_Unsigned_with_only_512_bytes_of_tables) and Z180 hardware multiplication routines by [Phillip Stevens](https://feilipu.me/)
 - `plasma.asm` is converted from a [6809 program](https://github.com/74hc595/Ultim809/blob/master/code/user/plasma/plasma.asm) by Matt Sarnoff.
 - `sprite.asm` uses globe bitmaps from the [TI VDP Programmer's Guide](http://map.grauw.nl/resources/video/ti-vdp-programmers-guide.pdf).
 - `fern.c` and `fern.bas` are implementations of the [Barnsley Fern](https://en.wikipedia.org/wiki/Barnsley_fern) IFS fractal first described by Michael Barnsley.
 - `hopalong.c` and `hopalong.bas` are implementations of the [Hopalong Attractor](https://brainwagon.org/2011/03/24/hopalong-from-dewdneys-armchair-universe/) discovered by Barry Martin of Aston University and named by A.K. Dewdney in his Computer Recreations column in the September 1986 issue of *Scientific American*.
-- The remaining code was written by me, J.B. Langston.  Specifically, the `tms.asm`, `tmsc.asm` and `tms.h` library files.
+- The remaining code was written by me, J.B. Langston.  Specifically, the `tms.asm`, `tmsc.asm`, `z180.asm`, `utility.asm` and `tms.h` library files are my own work.
