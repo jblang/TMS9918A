@@ -6,19 +6,12 @@
 ;
 ; Adapted to TMS9918 by J.B. Langston
 
-usez180:        equ     0                       ; use Z180 multiply instruction
-useturbo:       equ     1                       ; use clock doubler on Z180 (no effect on Z80)
-dcntl:          equ     0f2h                    ; Z180 DMA control register address
-cmr:            equ     0deh                    ; Z180 clock multiplier register
-
-bdos:           equ     5
-
                 org     100h
-                ld      (oldstack),sp           ; save old stack pointer
-                ld      sp, stack               ; initailize stack
-                jp      mandelbrot
+                jp      start
 
                 include "tms.asm"               ; TMS subroutines
+                include "z180.asm"              ; Z180 subroutines
+                include "utility.asm"           ; BDOS utility routines
 
 ; mandelbrot constants
 scale:          equ     256                     ; Do NOT change this - the
@@ -36,23 +29,55 @@ y_end:          equ     9 * (scale / 8) - 1     ; Maximum y-coordinate
 y_step:         equ     3                       ; y-coordinate step-width
 
 ; mandelbrot variables
-x:               defw    0                       ; x-coordinate
-y:               defw    0                       ; y-coordinate
-z_0:             defw    0
-z_1:             defw    0
-scratch_0:       defw    0
-z_0_square_high: defw    0
-z_0_square_low:  defw    0
-z_1_square_high: defw    0
-z_1_square_low:  defw    0
+x:              defw    0                       ; x-coordinate
+y:              defw    0                       ; y-coordinate
+z_0:            defw    0
+z_1:            defw    0
+scratch_0:      defw    0
+z_0_square_hi:  defw    0
+z_0_square_lo:  defw    0
+z_1_square_hi:  defw    0
+z_1_square_lo:  defw    0
 
-; mandelbrot entry point
-mandelbrot:
-if usez180 & useturbo
-                call    gofast
-endif
+z180scmr:       defb    0                       ; original Z180 register values
+z180ccrs:       defb    0
+z180dcntls:     defb    0
+notmsmsg:       defb    "TMS9918A not found, aborting!$"
+oldsp:          defw    0                
+                defs    40h
+stack:
+
+; entry point
+start:          ld      (oldsp),sp              ; save old stack pointer
+                ld      sp, stack               ; initailize stack
+
+                call    z180detect              ; detect Z180
+                ld      e, 0
+                jp      nz, noz180              ; not detected; skip Z180 initialization
+                ld      hl, mul_z180            ; use Z180 hardware multiply
+                ld      (mul_function), hl
+                ld      hl, z180scmr            ; save Z180 registers
+                ld      c, Z180_CMR
+                call    z180save
+                ld      hl, z180ccrs
+                ld      c, Z180_CCR
+                call    z180save
+                ld      hl, z180dcntls
+                ld      c, Z180_DCNTL
+                call    z180save
+                ld      a, 1
+                call    z180memwait             ; memory waits required for faster clock
+                ld      a, 4                    ; io waits required for faster clock
+                call    z180iowait
+                call    z180clkfast             ; moar speed!
+                call    z180getclk              ; get clock multiple
+noz180:         call    tmssetwait              ; set VDP wait loop based on clock multiple
+
+                call    tmsprobe                ; find what port TMS9918A listens on
+                jp      nz, notms
+
                 call    tmsbitmap
-                xor     a                     ; clear pixel counters
+                xor     a                       ; clear pixel counters
                 ld      (xypos), a
                 ld      (xypos+1), a
                 ld      (bitindex), a
@@ -65,7 +90,7 @@ outer_loop:     ld      hl, y_end               ; Is y <= y_end?
                 ld      de, (y)
                 and     a                       ; Clear carry
                 sbc     hl, de                  ; Perform the comparison
-                jp      m, mandel_end           ; End of outer loop reached
+                jp      m, exit           ; End of outer loop reached
 
 ;    for (x = x_start; x <= x_end; x += x_step)
 ;    {
@@ -90,25 +115,25 @@ iteration_loop: push    bc                      ; iteration -> stack
 ;        z2 = (z_0 * z_0 - z_1 * z_1) / SCALE;
                 ld      hl, (z_1)               ; Compute DE HL = z_1 * z_1
                 ld      d, h
-		ld	e, l
+                ld      e, l
                 call    mul_16
-                ld      (z_0_square_low), hl    ; z_0 ** 2 is needed later again
-                ld      (z_0_square_high), de
+                ld      (z_0_square_lo), hl     ; z_0 ** 2 is needed later again
+                ld      (z_0_square_hi), de
 
                 ld      hl, (z_0)               ; Compute DE HL = z_0 * z_0
                 ld      d, h
-		ld	e, l
+                ld      e, l
                 call    mul_16
-                ld      (z_1_square_low), hl    ; z_1 ** 2 will be also needed
-                ld      (z_1_square_high), de
+                ld      (z_1_square_lo), hl     ; z_1 ** 2 will be also needed
+                ld      (z_1_square_hi), de
 
                 and     a                       ; Compute subtraction
-                ld      bc, (z_0_square_low)
+                ld      bc, (z_0_square_lo)
                 sbc     hl, bc
                 ld      (scratch_0), hl         ; Save lower 16 bit of result
                 ld      h, d
-		ld	l, e
-                ld      bc, (z_0_square_high)
+                ld      l, e
+                ld      bc, (z_0_square_hi)
                 sbc     hl, bc
                 ld      bc, (scratch_0)         ; HL BC = z_0 ** 2 - z_1 ** 2
 
@@ -137,14 +162,14 @@ iteration_loop: push    bc                      ; iteration -> stack
                 ld      (z_0), hl
 
 ;        if (z0 * z0 / SCALE + z1 * z1 / SCALE > 4 * SCALE)
-                ld      hl, (z_0_square_low)    ; Use the squares computed
-                ld      de, (z_1_square_low)    ; above
+                ld      hl, (z_0_square_lo)     ; Use the squares computed
+                ld      de, (z_1_square_lo)     ; above
                 add     hl, de
-                ld      b, h                  ; BC contains lower word of sum
-		ld	c, l
+                ld      b, h                    ; BC contains lower word of sum
+                ld      c, l
 
-                ld      hl, (z_0_square_high)
-                ld      de, (z_1_square_high)
+                ld      hl, (z_0_square_hi)
+                ld      de, (z_1_square_hi)
                 adc     hl, de
 
                 ld      h, l                    ; HL now contains (z_0 ** 2 +
@@ -183,266 +208,204 @@ inner_loop_end:
                 add     hl, de
                 ld      (y), hl                 ; Store new y-value
 
-                ld      c,6                     ; check for keypress
-                ld      e,0ffh
-                call    bdos
-                or      a                       ; and exit early if pressed
+                call    keypress
                 jp      z,outer_loop
 ; }
 
-mandel_end:
-if usez180 & useturbo
-                call    goslow
-endif
-                ld      sp,(oldstack)	        ; put stack back to how we found it
+exit:           ld      hl, z180scmr            ; restore Z180 registers
+                ld      c, Z180_CMR
+                call    z180restore
+                ld      hl, z180ccrs
+                ld      c, Z180_CCR
+                call    z180restore
+                ld      hl, z180dcntls
+                ld      c, Z180_DCNTL
+                call    z180restore
+                ld      sp,(oldsp)              ; put stack back to how we found it
                 rst     0
 
-;
-;   Compute DEHL = BC * DE (signed): This routine is not too clever but it
-; works. It is based on a standard 16-by-16 multiplication routine for unsigned
-; integers. At the beginning the sign of the result is determined based on the
-; signs of the operands which are negated if necessary. Then the unsigned
-; multiplication takes place, followed by negating the result if necessary.
-;
+notms:          ld      de, notmsmsg
+                call    strout
+                jp      exit
 
-if usez180
 
-mul_16:
-   ld b,d                       ; d = MSB of multiplicand
-   ld c,h                       ; h = MSB of multiplier
-   push bc                      ; save sign info
+mul_16:         ld      b,d                     ; d = MSB of multiplicand
+                ld      c,h                     ; h = MSB of multiplier
+                push    bc                      ; save sign info
 
-   bit 7,d
-   jr Z,l_pos_de                ; take absolute value of multiplicand
+                bit     7,d
+                jr      z,de_positive           ; take absolute value of multiplicand
 
-   ld a,e
-   cpl 
-   ld e,a
-   ld a,d
-   cpl
-   ld d,a
-   inc de
+                ld      a,e
+                cpl 
+                ld      e,a
+                ld      a,d
+                cpl
+                ld      d,a
+                inc     de
 
-l_pos_de:
-   bit 7,h
-   jr Z,l_pos_hl                ; take absolute value of multiplier
+de_positive:
+                bit     7,h
+                jr      z,hl_positive           ; take absolute value of multiplier
 
-   ld a,l
-   cpl
-   ld l,a
-   ld a,h
-   cpl
-   ld h,a
-   inc hl
+                ld      a,l
+                cpl
+                ld      l,a
+                ld      a,h
+                cpl
+                ld      h,a
+                inc     hl
 
-l_pos_hl:
-                                ; prepare unsigned dehl = de x hl
-   ld b,l                       ; xl
-   ld c,d                       ; yh
-   ld d,l                       ; xl
-   ld l,c
-   push hl                      ; xh yh
-   ld l,e                       ; yl
+; selectively call appropriate multiplication routine for CPU
+hl_positive:
+                ld      ix, (mul_function)
+                jp      (ix)
 
-   ; bc = xl yh
-   ; de = xl yl
-   ; hl = xh yl
-   ; stack = xh yh
+mul_function:   defw    mul_z80
 
-   ;mlt de                       ; xl * yl
-   defb 0edh, 5ch
+mul_z180:
+                                                ; prepare unsigned dehl = de x hl
+                ld      b,l                     ; xl
+                ld      c,d                     ; yh
+                ld      d,l                     ; xl
+                ld      l,c
+                push    hl                      ; xh yh
+                ld      l,e                     ; yl
 
-   ;mlt bc                       ; xl * yh
-   defb 0edh, 4ch
+                ; bc = xl yh
+                ; de = xl yl
+                ; hl = xh yl
+                ; stack = xh yh
 
-   ;mlt hl                       ; xh * yl
-   defb 0edh, 6ch
-   
-   xor a
-   add hl,bc                    ; sum cross products
-   adc a,a                      ; collect carry
+                ;mlt    de                      ; xl * yl
+                defb    0edh, 5ch
 
-   ld b,a                       ; carry from cross products
-   ld c,h                       ; LSB of MSW from cross products
+                ;mlt    bc                      ; xl * yh
+                defb    0edh, 4ch
 
-   ld a,d
-   add a,l
-   ld d,a                       ; de = final product LSW
+                ;mlt    hl                      ; xh * yl
+                defb    0edh, 6ch
+                
+                xor     a
+                add     hl,bc                   ; sum cross products
+                adc     a,a                     ; collect carry
 
-   pop hl
-   ;mlt hl                       ; xh * yh
-   defb 0edh, 6ch
+                ld      b,a                     ; carry from cross products
+                ld      c,h                     ; LSB of MSW from cross products
 
-   adc hl,bc                    ; hl = final product MSW
-   ex de,hl
+                ld      a,d
+                add     a,l
+                ld      d,a                     ; de = final product LSW
 
-   pop bc                       ; recover sign info from multiplicand and multiplier
-   ld a,b
-   xor c
-   ret P                        ; return if positive product
+                pop     hl
+                ;mlt    hl                      ; xh * yh
+                defb    0edh, 6ch
 
-   ld a,l                       ; negate product and return
-   cpl
-   ld l,a
-   ld a,h
-   cpl
-   ld h,a
-   ld a,e
-   cpl
-   ld e,a
-   ld a,d
-   cpl
-   ld d,a
-   inc l
-   ret NZ
-   inc h
-   ret NZ
-   inc de
-   ret
+                adc     hl,bc                   ; hl = final product MSW
+                ex      de,hl
 
-if useturbo
+                pop     bc                      ; recover sign info from multiplicand and multiplier
+                ld      a,b
+                xor     c
+                ret     P                       ; return if positive product
 
-; Enable Z180 clock multiplier to overclock to 36.864MHz
-gofast:
-                push    bc
-                push    af
-                ld      bc, dcntl       ; DCNTL register houses wait state settings
-                ld      a, 70h          ; 1 wait state for memory, 4 wait states for I/O
-                out     (c),a
-                ld      bc, cmr         ; CMR register contains clock X1/X2 bit
-                ld      a, 0ffh         ; set X2 bit (lower 7 bits reserved, all 1s)
-                out     (c),a
-                pop     af
-                pop     bc
+                ld      a,l                     ; negate product and return
+                cpl
+                ld      l,a
+                ld      a,h
+                cpl
+                ld      h,a
+                ld      a,e
+                cpl
+                ld      e,a
+                ld      a,d
+                cpl
+                ld      d,a
+                inc     l
+                ret     nz
+                inc     h
+                ret     nz
+                inc     de
                 ret
 
-; Disable Z180 clock multiplier to return to 18.432MHz
-goslow:
+mul_z80:
+                ; prepare unsigned dehl = de x hl
+                ; multiplication of two 16-bit numbers into a 32-bit product
+                ;
+                ; enter : de = 16-bit multiplicand = y
+                ;         hl = 16-bit multiplicand = x
+                ;
+                ; exit  : dehl = 32-bit product
+                ;         carry reset
+                ;
+                ; uses  : af, bc, de, hl
+
+                ld      b,l                     ; x0
+                ld      c,e                     ; y0
+                ld      e,l                     ; x0
+                ld      l,d
+                push    hl                      ; x1 y1
+                push    bc                      ; x0 y0        
+                ld      l,c                     ; y0
+
+                ; de = y1 x0
+                ; hl = x1 y0
+                ; stack = x1 y1
+                ; stack = x0 y0
+
+                call    mulu_de                 ; y1*x0
+                ex      de,hl
+                call    mulu_de                 ; x1*y0
+
+                xor     a                       ; zero A
+                add     hl,de                   ; sum cross products p2 p1
+                adc     a,a                     ; capture carry p3
+
+                pop     de                      ; x0 y0
+                ex      af,af'
+                call    mulu_de                 ; y0*x0
+                ex      af,af'
+                ld      b,a                     ; carry from cross products
+                ld      c,h                     ; LSB of MSW from cross products
+
+                ld      a,d
+                add     a,l
+                ld      h,a
+                ld      l,e                     ; LSW in HL p1 p0
+
+                pop     de                      ; x1 y1
                 push    bc
-                push    af
-                ld      bc, cmr         ; CMR register contains clock X1/X2 bit
-                ld      a, 03fh         ; clear X2 bit (lower 7 bits reserved, all 1s)
-                out     (c),a
-                ld      bc, dcntl       ; DCNTL register houses wait state settings
-                ld      a, 10h          ; 0 wait states for memory, 2 wait states for I/O
-                out     (c),a
-                pop     af
+                ex      af,af'
+                call    mulu_de                 ; x1*y1
+                ex      af,af'
                 pop     bc
+                ex      de,hl
+                adc     hl,bc
+                ex      de,hl                   ; de = final MSW
+
+                pop     bc                      ; recover sign info from multiplicand and multiplier
+                ld      a,b
+                xor     c
+                ret     p                       ; return if positive product
+
+                ld      a,l                     ; negate product and return
+                cpl
+                ld      l,a
+                ld      a,h
+                cpl
+                ld      h,a
+                ld      a,e
+                cpl
+                ld      e,a
+                ld      a,d
+                cpl
+                ld      d,a
+                inc     l
+                ret     nz
+                inc     h
+                ret     nz
+                inc     de
                 ret
-
-endif
-
-else
-
-mul_16:
-       ld b,d                       ; d = MSB of multiplicand
-       ld c,h                       ; h = MSB of multiplier
-       push bc                      ; save sign info
-
-       bit 7,d
-       jr Z,l_pos_de                ; take absolute value of multiplicand
-
-       ld a,e
-       cpl 
-       ld e,a
-       ld a,d
-       cpl
-       ld d,a
-       inc de
-
-l_pos_de:
-       bit 7,h
-       jr Z,l_pos_hl                ; take absolute value of multiplier
-
-       ld a,l
-       cpl
-       ld l,a
-       ld a,h
-       cpl
-       ld h,a
-       inc hl
-
-l_pos_hl:
-                                     ; prepare unsigned dehl = de x hl
-l_mulu_32_16x16:
-        ; multiplication of two 16-bit numbers into a 32-bit product
-        ;
-        ; enter : de = 16-bit multiplicand = y
-        ;         hl = 16-bit multiplicand = x
-        ;
-        ; exit  : dehl = 32-bit product
-        ;         carry reset
-        ;
-        ; uses  : af, bc, de, hl
-
-        ld b,l                      ; x0
-        ld c,e                      ; y0
-        ld e,l                      ; x0
-        ld l,d
-        push hl                     ; x1 y1
-        push bc                     ; x0 y0        
-        ld l,c                      ; y0
-
-        ; de = y1 x0
-        ; hl = x1 y0
-        ; stack = x1 y1
-        ; stack = x0 y0
-
-        call l_z80_mulu_de          ; y1*x0
-        ex de,hl
-        call l_z80_mulu_de          ; x1*y0
-
-        xor a                       ; zero A
-        add hl,de                   ; sum cross products p2 p1
-        adc a,a                     ; capture carry p3
-
-        pop de                      ; x0 y0
-        ex af,af
-        call l_z80_mulu_de          ; y0*x0
-        ex af,af
-        ld b,a                      ; carry from cross products
-        ld c,h                      ; LSB of MSW from cross products
-
-        ld a,d
-        add a,l
-        ld h,a
-        ld l,e                      ; LSW in HL p1 p0
-
-        pop de                      ; x1 y1
-        push bc
-        ex af,af
-        call l_z80_mulu_de          ; x1*y1
-        ex af,af
-        pop bc
-        ex de,hl
-        adc hl,bc
-        ex de,hl                    ; de = final MSW
-
-;------------------
-
-        pop bc                       ; recover sign info from multiplicand and multiplier
-        ld a,b
-        xor c
-        ret P                        ; return if positive product
-
-        ld a,l                       ; negate product and return
-        cpl
-        ld l,a
-        ld a,h
-        cpl
-        ld h,a
-        ld a,e
-        cpl
-        ld e,a
-        ld a,d
-        cpl
-        ld d,a
-        inc l
-        ret NZ
-        inc h
-        ret NZ
-        inc de
-        ret
 
 ;------------------------------------------------------------------------------
 ;
@@ -458,120 +421,118 @@ l_mulu_32_16x16:
 ;
 ; exit  : de = 16-bit product
 
-l_z80_mulu_de:
-        ld a,d                  ; put largest in d
-        cp e
-        jr NC,lnc
-        ld d,e
-        ld e,a
+mulu_de:
+                ld      a,d                     ; put largest in d
+                cp      e
+                jr      nc,lnc
+                ld      d,e
+                ld      e,a
 
-lnc:                            ; with largest in d
-        xor a
-        or e
-        jr Z,lzeroe             ; multiply by 0
+lnc:                                            ; with largest in d
+                xor     a
+                or      e
+                jr      z,lzeroe                ; multiply by 0
 
-        ld b,d                  ; keep larger -> b
-        ld c,e                  ; keep smaller -> c
+                ld      b,d                     ; keep larger -> b
+                ld      c,e                     ; keep smaller -> c
 
-        ld a,d
-        sub e
-        rra
-        ld d,a                  ; (x-y)/2 -> d
+                ld      a,d
+                sub     e
+                rra
+                ld      d,a                     ; (x-y)/2 -> d
 
-        ld a,b
-        add a,c
-        rra                     ; check for odd/even
+                ld      a,b
+                add     a,c
+                rra                             ; check for odd/even
 
-        push hl                 ; preserve hl
+                push    hl                      ; preserve hl
 
-        ld l,a                  ; (x+y)/2 -> l
-        ld h,sqrlo/$100         ; loads sqrlo page
-        ld a,(hl)               ; LSB ((x+y)/2)2 -> a
-        ld e,l                  ; (x+y)/2 -> e
-        ld l,d                  ; (x-y)/2 -> l (for index)
-        jr NC,leven
-                                ; odd tail
-        sub (hl)                ; LSB ((x+y)/2)2 - ((x-y)/2)2
-        ld l,e                  ; (x+y)/2 -> l
-        ld e,a                  ; LSB ((x+y)/2)2 - ((x-y)/2)2 -> e
-        inc h                   ; loads sqrhi page
-        ld a,(hl)               ; MSB ((x+y)/2)2 -> a
-        ld l,d                  ; (x-y)/2 -> l
-        sbc a,(hl)              ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> a
-        ld d,a                  ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> d
+                ld      l,a                     ; (x+y)/2 -> l
+                ld      h,sqrlo/$100            ; loads sqrlo page
+                ld      a,(hl)                  ; LSB ((x+y)/2)2 -> a
+                ld      e,l                     ; (x+y)/2 -> e
+                ld      l,d                     ; (x-y)/2 -> l (for index)
+                jr      nc,leven
+                                                ; odd tail
+                sub     (hl)                    ; LSB ((x+y)/2)2 - ((x-y)/2)2
+                ld      l,e                     ; (x+y)/2 -> l
+                ld      e,a                     ; LSB ((x+y)/2)2 - ((x-y)/2)2 -> e
+                inc     h                       ; loads sqrhi page
+                ld      a,(hl)                  ; MSB ((x+y)/2)2 -> a
+                ld      l,d                     ; (x-y)/2 -> l
+                sbc     a,(hl)                  ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> a
+                ld      d,a                     ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> d
 
-        ld a,e
-        add a,c                 ; add smaller y
-        ld e,a
-        ld a,d
-        adc a,0
-        ld d,a
+                ld      a,e
+                add     a,c                     ; add smaller y
+                ld      e,a
+                ld      a,d
+                adc     a,0
+                ld      d,a
 
-        pop hl
-        ret
+                pop     hl
+                ret
 
-leven:                          ; even tail
-        sub (hl)                ; LSB ((x+y)/2)2 - ((x-y)/2)2
-        ld l,e                  ; (x+y)/2 -> l
-        ld e,a                  ; LSB ((x+y)/2)2 - ((x-y)/2)2 -> e
-        inc h                   ; loads sqrhi page
-        ld a,(hl)               ; MSB ((x+y)/2)2 -> a
-        ld l,d                  ; (x-y)/2 -> l
-        sbc a,(hl)              ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> a
-        ld d,a                  ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> d
+leven:                                          ; even tail
+                sub     (hl)                    ; LSB ((x+y)/2)2 - ((x-y)/2)2
+                ld      l,e                     ; (x+y)/2 -> l
+                ld      e,a                     ; LSB ((x+y)/2)2 - ((x-y)/2)2 -> e
+                inc     h                       ; loads sqrhi page
+                ld      a,(hl)                  ; MSB ((x+y)/2)2 -> a
+                ld      l,d                     ; (x-y)/2 -> l
+                sbc     a,(hl)                  ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> a
+                ld      d,a                     ; MSB ((x+y)/2)2 - ((x-y)/2)2 -> d
 
-        pop hl
-        ret
+                pop     hl
+                ret
 
 lzeroe:
-        ld d,e
-        ret
+                ld      d,e
+                ret
 
-	defs (($ & $FF00) + $100) - $	; page align
+                defs    (($ & $FF00) + $100) - $   ; page align
 
-sqrlo: ;low(x*x) should located on the page border
-        defb $00,$01,$04,$09,$10,$19,$24,$31,$40,$51,$64,$79,$90,$a9,$c4,$e1
-        defb $00,$21,$44,$69,$90,$b9,$e4,$11,$40,$71,$a4,$d9,$10,$49,$84,$c1
-        defb $00,$41,$84,$c9,$10,$59,$a4,$f1,$40,$91,$e4,$39,$90,$e9,$44,$a1
-        defb $00,$61,$c4,$29,$90,$f9,$64,$d1,$40,$b1,$24,$99,$10,$89,$04,$81
-        defb $00,$81,$04,$89,$10,$99,$24,$b1,$40,$d1,$64,$f9,$90,$29,$c4,$61
-        defb $00,$a1,$44,$e9,$90,$39,$e4,$91,$40,$f1,$a4,$59,$10,$c9,$84,$41
-        defb $00,$c1,$84,$49,$10,$d9,$a4,$71,$40,$11,$e4,$b9,$90,$69,$44,$21
-        defb $00,$e1,$c4,$a9,$90,$79,$64,$51,$40,$31,$24,$19,$10,$09,$04,$01
-        defb $00,$01,$04,$09,$10,$19,$24,$31,$40,$51,$64,$79,$90,$a9,$c4,$e1
-        defb $00,$21,$44,$69,$90,$b9,$e4,$11,$40,$71,$a4,$d9,$10,$49,$84,$c1
-        defb $00,$41,$84,$c9,$10,$59,$a4,$f1,$40,$91,$e4,$39,$90,$e9,$44,$a1
-        defb $00,$61,$c4,$29,$90,$f9,$64,$d1,$40,$b1,$24,$99,$10,$89,$04,$81
-        defb $00,$81,$04,$89,$10,$99,$24,$b1,$40,$d1,$64,$f9,$90,$29,$c4,$61
-        defb $00,$a1,$44,$e9,$90,$39,$e4,$91,$40,$f1,$a4,$59,$10,$c9,$84,$41
-        defb $00,$c1,$84,$49,$10,$d9,$a4,$71,$40,$11,$e4,$b9,$90,$69,$44,$21
-        defb $00,$e1,$c4,$a9,$90,$79,$64,$51,$40,$31,$24,$19,$10,$09,$04,$01
-sqrhi: ;high(x*x) located on next page (automatically)
-        defb $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        defb $01,$01,$01,$01,$01,$01,$01,$02,$02,$02,$02,$02,$03,$03,$03,$03
-        defb $04,$04,$04,$04,$05,$05,$05,$05,$06,$06,$06,$07,$07,$07,$08,$08
-        defb $09,$09,$09,$0a,$0a,$0a,$0b,$0b,$0c,$0c,$0d,$0d,$0e,$0e,$0f,$0f
-        defb $10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$17,$17,$18
-        defb $19,$19,$1a,$1a,$1b,$1c,$1c,$1d,$1e,$1e,$1f,$20,$21,$21,$22,$23
-        defb $24,$24,$25,$26,$27,$27,$28,$29,$2a,$2b,$2b,$2c,$2d,$2e,$2f,$30
-        defb $31,$31,$32,$33,$34,$35,$36,$37,$38,$39,$3a,$3b,$3c,$3d,$3e,$3f
-        defb $40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$4a,$4b,$4c,$4d,$4e,$4f
-        defb $51,$52,$53,$54,$55,$56,$57,$59,$5a,$5b,$5c,$5d,$5f,$60,$61,$62
-        defb $64,$65,$66,$67,$69,$6a,$6b,$6c,$6e,$6f,$70,$72,$73,$74,$76,$77
-        defb $79,$7a,$7b,$7d,$7e,$7f,$81,$82,$84,$85,$87,$88,$8a,$8b,$8d,$8e
-        defb $90,$91,$93,$94,$96,$97,$99,$9a,$9c,$9d,$9f,$a0,$a2,$a4,$a5,$a7
-        defb $a9,$aa,$ac,$ad,$af,$b1,$b2,$b4,$b6,$b7,$b9,$bb,$bd,$be,$c0,$c2
-        defb $c4,$c5,$c7,$c9,$cb,$cc,$ce,$d0,$d2,$d4,$d5,$d7,$d9,$db,$dd,$df
-        defb $e1,$e2,$e4,$e6,$e8,$ea,$ec,$ee,$f0,$f2,$f4,$f6,$f8,$fa,$fc,$fe
-
-endif
+sqrlo:          ; low(x*x) should located on the page border
+                defb    $00,$01,$04,$09,$10,$19,$24,$31,$40,$51,$64,$79,$90,$a9,$c4,$e1
+                defb    $00,$21,$44,$69,$90,$b9,$e4,$11,$40,$71,$a4,$d9,$10,$49,$84,$c1
+                defb    $00,$41,$84,$c9,$10,$59,$a4,$f1,$40,$91,$e4,$39,$90,$e9,$44,$a1
+                defb    $00,$61,$c4,$29,$90,$f9,$64,$d1,$40,$b1,$24,$99,$10,$89,$04,$81
+                defb    $00,$81,$04,$89,$10,$99,$24,$b1,$40,$d1,$64,$f9,$90,$29,$c4,$61
+                defb    $00,$a1,$44,$e9,$90,$39,$e4,$91,$40,$f1,$a4,$59,$10,$c9,$84,$41
+                defb    $00,$c1,$84,$49,$10,$d9,$a4,$71,$40,$11,$e4,$b9,$90,$69,$44,$21
+                defb    $00,$e1,$c4,$a9,$90,$79,$64,$51,$40,$31,$24,$19,$10,$09,$04,$01
+                defb    $00,$01,$04,$09,$10,$19,$24,$31,$40,$51,$64,$79,$90,$a9,$c4,$e1
+                defb    $00,$21,$44,$69,$90,$b9,$e4,$11,$40,$71,$a4,$d9,$10,$49,$84,$c1
+                defb    $00,$41,$84,$c9,$10,$59,$a4,$f1,$40,$91,$e4,$39,$90,$e9,$44,$a1
+                defb    $00,$61,$c4,$29,$90,$f9,$64,$d1,$40,$b1,$24,$99,$10,$89,$04,$81
+                defb    $00,$81,$04,$89,$10,$99,$24,$b1,$40,$d1,$64,$f9,$90,$29,$c4,$61
+                defb    $00,$a1,$44,$e9,$90,$39,$e4,$91,$40,$f1,$a4,$59,$10,$c9,$84,$41
+                defb    $00,$c1,$84,$49,$10,$d9,$a4,$71,$40,$11,$e4,$b9,$90,$69,$44,$21
+                defb    $00,$e1,$c4,$a9,$90,$79,$64,$51,$40,$31,$24,$19,$10,$09,$04,$01
+sqrhi:          ; high(x*x) located on next page (automatically)
+                defb    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+                defb    $01,$01,$01,$01,$01,$01,$01,$02,$02,$02,$02,$02,$03,$03,$03,$03
+                defb    $04,$04,$04,$04,$05,$05,$05,$05,$06,$06,$06,$07,$07,$07,$08,$08
+                defb    $09,$09,$09,$0a,$0a,$0a,$0b,$0b,$0c,$0c,$0d,$0d,$0e,$0e,$0f,$0f
+                defb    $10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$17,$17,$18
+                defb    $19,$19,$1a,$1a,$1b,$1c,$1c,$1d,$1e,$1e,$1f,$20,$21,$21,$22,$23
+                defb    $24,$24,$25,$26,$27,$27,$28,$29,$2a,$2b,$2b,$2c,$2d,$2e,$2f,$30
+                defb    $31,$31,$32,$33,$34,$35,$36,$37,$38,$39,$3a,$3b,$3c,$3d,$3e,$3f
+                defb    $40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$4a,$4b,$4c,$4d,$4e,$4f
+                defb    $51,$52,$53,$54,$55,$56,$57,$59,$5a,$5b,$5c,$5d,$5f,$60,$61,$62
+                defb    $64,$65,$66,$67,$69,$6a,$6b,$6c,$6e,$6f,$70,$72,$73,$74,$76,$77
+                defb    $79,$7a,$7b,$7d,$7e,$7f,$81,$82,$84,$85,$87,$88,$8a,$8b,$8d,$8e
+                defb    $90,$91,$93,$94,$96,$97,$99,$9a,$9c,$9d,$9f,$a0,$a2,$a4,$a5,$a7
+                defb    $a9,$aa,$ac,$ad,$af,$b1,$b2,$b4,$b6,$b7,$b9,$bb,$bd,$be,$c0,$c2
+                defb    $c4,$c5,$c7,$c9,$cb,$cc,$ce,$d0,$d2,$d4,$d5,$d7,$d9,$db,$dd,$df
+                defb    $e1,$e2,$e4,$e6,$e8,$ea,$ec,$ee,$f0,$f2,$f4,$f6,$f8,$fa,$fc,$fe
 
 ; working area for 8 pixels at a time
-primary:        defb 0                          ; primary color
-secondary:      defb 0                          ; secondary color
-pattern:        defb 0                          ; color bit pattern
-bitindex:       defb 0                          ; current bit within byte
-xypos:          defw 0                          ; current x, y position on the screen
+primary:        defb    0                       ; primary color
+secondary:      defb    0                       ; secondary color
+pattern:        defb    0                       ; color bit pattern
+bitindex:       defb    0                       ; current bit within byte
+xypos:          defw    0                       ; current x, y position on the screen
 
 ; plot a pixel to TMS9918 screen
 ;       B = color of pixel
@@ -645,8 +606,3 @@ setbit:
                 add     hl, de
                 ld      (xypos), hl
                 ret
-
-oldstack:       
-                defw 0                
-                defs 64
-stack:

@@ -26,7 +26,7 @@
 tmsport:
         defb    0beh                    ; port for TMS vram (reg is 1 higher)
 tmswait:
-        defb    10                      ; iterations to wait after ram access
+        defb    31                      ; iterations to wait after ram access
 
 ; ---------------------------------------------------------------------------
 ; register constants
@@ -79,16 +79,17 @@ tmswhite:       equ 0Fh
 ; port I/O routines
 
 ; These routines access the ports configured in tmsport.
-; tmsramin/tmsramout also include a configurable delay loop, which inserts
-; delays between VRAM writes to work properly with faster CPU speeds
 
-
-; These memory locations can be set at runtime to support different
-; hardware configurations from the same binary.
+; These memory locations can be set at runtime to support different hardware
+; configurations from the same binary.  tmsprobe automatically detects the
+; TMS9918A on common ports.
 
 ; The TMS9918A RAM must not be accessed more than once every 8 us or display 
 ; corruption may occur.  During vblank and with the display disabled, 
 ; accesses can be 2 us apart, but we will always use 8 us minimum delay.
+
+; tmsramin/tmsramout include a configurable delay loop, which waits for the
+; configured iterations between VRAM writes to work properly with faster CPUs
 
 ; Minimum time to execute each procedure call:
 ; Z80: 88 cycles, 8.8 us @ 10 MHz
@@ -100,11 +101,54 @@ tmswhite:       equ 0Fh
 ; Z180: 7 cycles * (iterations - 1)
 ;       0.756 us @ 9.216 MHz, 0.378 us @ 18.432, 0.189 us @ 36.864
 
-; Delay loop iterations required for different CPU configurations:
+; Delay loop iterations required for different CPU speeds:
 ; Z80 @ 10 MHz or less: 1
 ; Z180 @ 9.216 MHz or less: 1
 ; Z180 @ 18.432 MHz: 10
 ; Z180 @ 36.864 MHz: 31
+tmswaits:      defb 1, 10, 31           ; wait iterations to add for different CPU speeds
+
+; set up wait time based on clock multiplier in E
+tmssetwait:
+        ld      hl, tmswaits
+        ld      d, 0
+        add     hl, de
+        ld      a, (hl)
+        ld      (tmswait), a
+        ret
+
+; try to find TMS9918A on a port from the list
+tmsprobe:
+        ld      hl, tmsports
+        ld      b, tmsnumports
+tmsp1:  push    bc
+        ld      a, (hl)
+        ld      (tmsport), a            ; load a port from the list
+        call    tmsregin
+        ld      de, 0
+        call    tmswriteaddr            ; try to write TI into memory
+        ld      a, 'T'
+        call    tmsramout
+        ld      a, 'I'
+        call    tmsramout
+        ld      de, 0
+        call    tmsreadaddr             ; read it back in and see if it matches
+        call    tmsramin
+        cp      'T'
+        jp      nz, tmsp2
+        call    tmsramin
+        cp      'I'
+        jp      z, tmsp3                ; matched, we found the right port
+tmsp2:  inc     hl
+        pop     bc
+        djnz    tmsp1                   ; didn't match, try next port
+        or      1                       ; NZ to indicate we didn't find a TMS9918A anywhere
+        ret
+tmsp3:  pop     bc
+        ret
+
+tmsports:       defb 0beh, 98h, 10h, 8  ; ports for ColecoVision, MSX, Sord M5, Tatung Einstein
+tmsnumports:    equ $ - tmsports
 
 ; write to configured register port
 ; parameters:
@@ -136,7 +180,7 @@ tmsramout:                              ; 17  | 16 (call)
         push    bc                      ; 11  | 11
         ld      bc, (tmsport)           ; 20  | 18
         out     (c), a                  ; 12  | 10
-tmsl1:  djnz    tmsl1                   ; 8   | 7  plus (13 | 9) * (iterations-1)
+tmsro1: djnz    tmsro1                  ; 8   | 7  plus (13 | 9) * (iterations-1)
         pop     bc                      ; 10  | 9
         ret                             ; 10  | 9
 
@@ -146,8 +190,8 @@ tmsl1:  djnz    tmsl1                   ; 8   | 7  plus (13 | 9) * (iterations-1
 tmsramin:
         push    bc
         ld      bc, (tmsport)
+tmsri1: djnz    tmsri1
         in      a, (c)
-tmsl2:  djnz    tmsl2
         pop     bc
         ret
 
@@ -202,7 +246,7 @@ tmsintdisable:
 tmsconfig:
         ld      de, tmsshadow           ; start of shadow area
 	ld      c, 8                    ; 8 registers
-tmsl3: 	ld      a, (hl)                 ; get register value from table
+tmsc1: 	ld      a, (hl)                 ; get register value from table
         call    tmsregout
 	ld      a, 8                    ; calculate current register number
 	sub     c
@@ -211,7 +255,7 @@ tmsl3: 	ld      a, (hl)                 ; get register value from table
         call    tmsregout
         xor     a                       ; continue until count reaches 0
         or      c
-	jp      nz, tmsl3
+	jp      nz, tmsc1
 	ret
 
 ; ---------------------------------------------------------------------------
@@ -244,13 +288,13 @@ tmsreadaddr:
 ;       BC = byte count
 tmswrite:
         call    tmswriteaddr            ; set the starting address
-tmsl4:  ld      a, (hl)                 ; get the current byte from ram
+tmsw1:  ld      a, (hl)                 ; get the current byte from ram
         call    tmsramout
         inc     hl                      ; next byte
         dec     bc                      ; continue until count is zero
         ld      a, b
         or      c
-        jp      nz, tmsl4
+        jp      nz, tmsw1
         ret
 
 ; fill a section of memory with a single value
@@ -261,10 +305,10 @@ tmsfill:
         push    af
         call    tmswriteaddr            ; set the starting address
         pop     af
-tmsl5:  call    tmsramout
+tmsf1:  call    tmsramout
         dec     c
-        jp      nz, tmsl5
-        djnz    tmsl5                   ; continue until count is zero
+        jp      nz, tmsf1
+        djnz    tmsf1                   ; continue until count is zero
         ret
 
 ; ---------------------------------------------------------------------------
@@ -333,7 +377,7 @@ tmssetpixel:    equ 0B0h                ; nop, or b
 ; set operation for tmsplotpixel to perform
 ;       HL = pixel operation (tmsclearpixel, tmssetpixel)
 tmspixelop:
-        ld      (maskop), hl
+        ld      (tmspp1), hl
         ret
 
 ; set or clear pixel at X, Y position
@@ -354,8 +398,7 @@ tmsplotpixel:
         ld      b, a
         call    tmsreadaddr             ; set read within pattern table
         call    tmsramin
-maskop:
-        or      b                       ; mask bit in previous byte
+tmspp1: or      b                       ; mask bit in previous byte
         nop                             ; place holder for 2 byte mask operation
         call    tmswriteaddr            ; set write address within pattern table
         call    tmsramout
@@ -416,12 +459,12 @@ tmsreset:
         ld      de, 0                   ; start a address 0000H
         call    tmswriteaddr
         ld      de, 4000h               ; write 16KB
-tmsl6:  xor     a
+tmsr1:  xor     a
         call    tmsramout
         dec     de                      ; continue until counter is 0
         ld      a, d
         or      e
-        jp      nz, tmsl6
+        jp      nz, tmsr1
         ret
 
 ; register values for multicolor mode
@@ -442,19 +485,19 @@ tmsmulticolor:
         call    tmswriteaddr
         ld      d, 6                    ; nametable has 6 different sections
         ld      e, 0                    ; first section starts at 0
-tmsl7:  ld      c, 4                    ; each section has 4 identical lines
-tmsl8:  ld      b, 32                   ; each line is 32 bytes long
+tmsmc1: ld      c, 4                    ; each section has 4 identical lines
+tmsmc2:  ld     b, 32                   ; each line is 32 bytes long
         ld      a, e                    ; load starting value for line
-tmsl9:  call    tmsramout               ; write byte to name table
+tmsmc3: call    tmsramout               ; write byte to name table
         inc     a                       ; increment value for next byte
-        djnz    tmsl9                   ; next byte in line
+        djnz    tmsmc3                  ; next byte in line
         dec     c                       ; decrement line counter
-        jp      nz, tmsl8               ; next line in section
+        jp      nz, tmsmc2              ; next line in section
         ld      a, e                    ; get previous section's starting value
         add     a, 32                   ; increase by 32 for the next section
         ld      e, a                    ; save it for later
         dec     d                       ; decrement section counter
-        jp      nz, tmsl7               ; next section
+        jp      nz, tmsmc1              ; next section
         ld      hl, tmsmcreg            ; switch to multicolor mode
         call    tmsconfig
         ret
@@ -477,10 +520,10 @@ tmsbitmap:
         call    tmswriteaddr            ; of 256 bytes ranging from 00-FF
         ld      b, 3
         xor     a
-tmsl10: call    tmsramout
+tmsbm1: call    tmsramout
         inc     a
-        jp      nz, tmsl10
-        djnz    tmsl10
+        jp      nz, tmsbm1
+        djnz    tmsbm1
         ld      hl, tmsbitmapreg        ; configure registers for bitmapped graphics
         call    tmsconfig
         ret

@@ -2,7 +2,7 @@
 ;(c)2004-2007 S.V.Bulba <vorobey@mail.khstu.ru>
 ;http://bulba.untergrund.net (http://bulba.at.kz)
 
-;With modifications by Wayne Warthen from tune.asm from RomWBW
+;With modifications from RomWBW by Wayne Warthen
 ;https://github.com/wwarthen/RomWBW/blob/master/Source/Apps/Tune/Tune.asm
 
 ;Release number

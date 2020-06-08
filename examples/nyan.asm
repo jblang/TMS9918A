@@ -4,38 +4,59 @@
 ; Nyan Cat theme by Karbofos: https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/
 ; PTx Player by S.V.Bulba <vorobey@mail.khstu.ru>
 
-                org $0100
-
 useay:          equ 1                   ; whether to play music on the AY-3 card
-
-bdos            equ 5                   ; bdos entry point
 frameticks:     equ 3                   ; number of interrupts per animation frame
 framecount:     equ 12                  ; number of frames in animation
 
+        org     100h
         jp      start
 
-                ; change incbin to binary for z88dk
-                include "PT3.asm"               ; PT3 player
-                incbin  "nyan/nyan.pt3"         ; music data
+        include "tms.asm"               ; TMS graphics routines
+        include "z180.asm"              ; Z180 routines
+        include "utility.asm"           ; BDOS utility routines
+        include "PT3.asm"               ; PT3 player
+        incbin  "nyan/nyan.pt3"         ; music data
 
 ; Change included binary for different cat
 animation:
-                ; change incbin to binary for z88dk
-                incbin  "nyan/nyan.bin"      ; The Classic
-                ;incbin "nyan/nyands.bin"    ; Skrillex
-                ;incbin "nyan/nyanfi.bin"    ; Finland
-                ;incbin "nyan/nyangb.bin"    ; Gameboy
-                ;incbin "nyan/nyanlb.bin"    ; Netherlands, light background
-                ;incbin "nyan/nyann1.bin"    ; Netherlands
-                ;incbin "nyan/nyann2.bin"    ; Cheese Cat
-                ;incbin "nyan/nyanus.bin"    ; USA
-                ;incbin "nyan/nyanxx.bin"    ; Nyanicorn
+        ; change incbin to binary for z88dk
+        incbin  "nyan/nyan.bin"         ; The Classic
+        ;incbin "nyan/nyands.bin"       ; Skrillex
+        ;incbin "nyan/nyanfi.bin"       ; Finland
+        ;incbin "nyan/nyangb.bin"       ; Gameboy
+        ;incbin "nyan/nyanlb.bin"       ; Netherlands, light background
+        ;incbin "nyan/nyann1.bin"       ; Netherlands
+        ;incbin "nyan/nyann2.bin"       ; Cheese Cat
+        ;incbin "nyan/nyanus.bin"       ; USA
+        ;incbin "nyan/nyanxx.bin"       ; Nyanicorn
 
-                include "tms.asm"       ; TMS graphics routines
-
+tickcounter:
+        defb    0                       ; interrupt down counter
+currframe:
+        defb    0                       ; current frame of animation
+notmsmsg:
+        defb    "TMS9918A not found, aborting!$"
+dcntls: defb    0
+oldsp:  defw    0                
+        defs    40h
+stack:
 start:
-        ld      (oldstack),sp           ; set up stack
-	ld      sp, stack
+        ld      (oldsp),sp              ; set up stack
+        ld      sp, stack
+
+        call    z180detect              ; detect Z180
+        ld      e, 0
+        jp      nz, noz180
+        ld      hl, dcntls
+        ld      c, Z180_DCNTL
+        call    z180save
+        ld      a, 4
+        call    z180iowait
+        call    z180getclk              ; get clock multiple
+noz180: call    tmssetwait              ; set VDP wait loop based on clock multiple
+
+        call    tmsprobe                ; find what port TMS9918A listens on
+        jp      nz, notms
 
         call    tmsmulticolor           ; initialize tms for multicolor mode
         ld      a, tmsdarkblue          ; set background color
@@ -63,17 +84,23 @@ endif
         and     80h                     ; check for vblank status bit
         call    nz, drawframe           ; only update when it's set
 
-        ld      c,6                     ; check for keypress
-        ld      e,0ffh
-        call    bdos
-        or      a                       ; and exit early if pressed
-        jp      z,mainloop
+        call    keypress
+        jp      z, mainloop
 
 if useay
         call    MUTE
 endif
-        ld      sp, (oldstack)
+
+exit:
+        ld      hl, dcntls
+        ld      c, Z180_DCNTL
+        call    z180restore
+        ld      sp, (oldsp)
         rst     0
+
+notms:  ld      de, notmsmsg
+        call    strout
+        jp      exit
 
 last:   defb    0
 
@@ -82,11 +109,6 @@ timer:  ld      b, 0f8h                 ; BIOS SYSGET function
         rst     8                       ; Call BIOS
         ld      a, l                    ; MSB to A
         ret                             ; Return to loop
-
-tickcounter:
-        defb    0                       ; interrupt down counter
-currframe:
-        defb    0                       ; current frame of animation
 
 ; draw a single animation frame
 ;       HL = animation data base address
@@ -104,8 +126,8 @@ drawframe:
         ld      d, a                    ; offset = frame x 600h
         ld      e, 0
         add     hl, de                  ; add offset to base address
-        ld      de, $0000               ; pattern table address in vram
-        ld      bc, $0600               ; length of one frame
+        ld      de, 0                   ; pattern table address in vram
+        ld      bc, 600h                ; length of one frame
         call    tmswrite                ; copy frame to pattern table
         ld      a, (currframe)          ; next animation frame
         inc     a
@@ -121,7 +143,3 @@ framewait:
         ld      hl, tickcounter          ; not time to switch animation frames yet
         dec     (hl)                    ; decrement down counter
         ret
-oldstack:
-        defw 0                
-        defs 64
-stack:
