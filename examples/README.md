@@ -12,6 +12,7 @@ I have tried to come up with fun ways to demonstrate the various aspects of prog
 - `z180.asm`: Reusable Z180 library.
 - `utility.asm`: Resuable BDOS and utility library.
 - `tmsfont.asm`: 6x8 bitmap font for use in text mode.
+- `PT3.asm`: PTx music player. Used to play the Nyan Cat theme on YM2149.
 
 ### C
 
@@ -26,7 +27,6 @@ I have tried to come up with fun ways to demonstrate the various aspects of prog
 - `ascii.asm`: ASCII character set. Demonstrates text mode.
 - `mandel.asm`: Mandelbrot renderer. Demonstrates pseudo-bitmap graphics (Graphics II Mode).
 - `nyan.asm`: Nyan Cat. Demonstrates multi-color mode. Change the `incbin` directives to `binary` for z88dk's assembler.
-- `PT3.asm`: PTx music player. Used to play the Nyan Cat theme on YM2149.
 - `plasma.asm`: Plasma effect. Demonstrates tiled graphics (Graphics I Mode).
 - `sprite.asm`: Bouncing globe. Demonstrates sprites.
 
@@ -57,9 +57,10 @@ The BASIC examples require the graphic primitives of [MSX-BASIC](https://en.wiki
 
 ## Credits
 
-- `nyan.asm` uses [PtxTools](https://bulba.untergrund.net/progr_e.htm) by Sergey Bulba. Nyan Cat animations from Passan Kiskat by [Dromedaar Vision](http://www.dromedaar.com/). Nyan Cat theme by [Karbofos](https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/).
+- `PT3.asm` comes from [PtxTools](https://bulba.untergrund.net/progr_e.htm) by Sergey Bulba, with modifications from [RomWBW](https://github.com/wwarthen/romwbw) by Wayne Warthen.
 - `tmsfont.asm` and `font.h` come from [Raster Fonts](https://github.com/idispatch/raster-fonts) by Oleg Kosenov.
-- `mandel.asm` uses fixed point Mandelbrot routine originally from [Rosetta Code](https://rosettacode.org/wiki/Mandelbrot_set#Z80_Assembly).  It has been enhanced with table-based multiplication from [CPC Wiki](http://www.cpcwiki.eu/index.php/Programming:Integer_Multiplication#Fast_8bit_.2A_8bit_Unsigned_with_only_512_bytes_of_tables) and Z180 hardware multiplication routines by [Phillip Stevens](https://feilipu.me/)
+- `mandel.asm` uses fixed point Mandelbrot routine originally from [Rosetta Code](https://rosettacode.org/wiki/Mandelbrot_set#Z80_Assembly).  It has been enhanced with table-based multiplication from [CPC Wiki](http://www.cpcwiki.eu/index.php/Programming:Integer_Multiplication#Fast_8bit_.2A_8bit_Unsigned_with_only_512_bytes_of_tables) and Z180 hardware multiplication routines by [Phillip Stevens](https://feilipu.me/).
+- `nyan.asm` has Nyan Cat animations from Passan Kiskat by [Dromedaar Vision](http://www.dromedaar.com/) and the Nyan Cat song by [Karbofos](https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/).
 - `plasma.asm` is converted from a [6809 program](https://github.com/74hc595/Ultim809/blob/master/code/user/plasma/plasma.asm) by Matt Sarnoff.
 - `sprite.asm` uses globe bitmaps from the [TI VDP Programmer's Guide](http://map.grauw.nl/resources/video/ti-vdp-programmers-guide.pdf).
 - `fern.c` and `fern.bas` are implementations of the [Barnsley Fern](https://en.wikipedia.org/wiki/Barnsley_fern) IFS fractal first described by Michael Barnsley.

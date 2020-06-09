@@ -1,6 +1,6 @@
 # TMS9918A Video Card for RC2014
 
-This is a TMS9918A-based video card for the RC2014. It allows the RC2014 to produce NTSC composite graphics using a classic chip of the 1980s. The TMS9918A was used in the TI-99/4A, MSX, ColecoVision, and Sega SG-1000. Enhanced derivatives were used in later MSX computers, the Sega Master System, and the Sega Genesis.
+This is a TMS9918A-based video card for [RC2014](https://rc2014.co.uk/) and [SC1xx](https://smallcomputercentral.wordpress.com/) computers based on the Z80 and Z180 processors. The TMS9918A produces NTSC composite graphics and was used in the TI-99/4A, MSX, ColecoVision, and Sega SG-1000. Enhanced derivatives were used in later MSX2 computers, the Sega Master System, and the Sega Genesis.
 
 This board is based on a [circuit](https://retrobrewcomputers.org/n8vem-pbwiki-archive/0/35845334/48860720/33053543/SRAM%20Replacement%20for%20TMS99x8%20VRAM.pdf) described by Tom LeMense for interfacing the TMS9918A with SRAM.  I started with his schematics, added port address decoding and laid out the circuit on an RC2014 module.
 
@@ -47,47 +47,40 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
+## Recommended Jumper Configurations
+The following jumper configurations are recommended for compatibility with unmodified software for classic machines using the TMS9918A.  The function of each jumper is described in more detail in the section following the table.
+
+The provided example programs automatically detect the TMS9918A on any of the following ports, so no change to the example code is necessary.
+
+|  | ColecoVision / SG-1000 | MSX | Sord M5 | Tatung Einstein | 
+|---|---|---|---|---|---|
+| Ports | B0-BF* | 98/99 | 10/11** | 08/09 |
+| `J4` (A7-A5) | 2nd from right (101) | 3rd from right (100) | Far left (000) | Far left (000) |
+| `J6` (A4) | Right (1) | Right (1) | Right (1) | Middle (0) | |
+| `JP2` (A3) | Lower (Ignore) | Upper (1) | Lower (Ignore) | Upper (1) |
+| `JP1` (A2-A1) | Lower (Ignore) | Upper (00) | Upper (00) | Upper (00) |
+| `JP4` (Interrupt) | Lower (NMI) | Upper (INT) | Lower (NMI) | Upper (INT) |
+
+\* On a real ColecoVision, the entire A0-BF range is assigned to the TMS9918A, but since all known games only use ports BE and BF, address decoding can be limited to B0-BF.  If you want to decode the full range A0-BF, place J6 in the left position instead.
+
+\** On a real Sord M5, only ports 10 and 11 are assigned to the TMS9918A, but since the address decoding for bit 3 can only be set to 1 or ignore, this configuration assigns both 10/11 and 18/19 to the TMS9918A.
+
+Note: This board cannot decode the port addresses used by the MTX (not to be confused with MSX) and Spectravideo SV-3xx machines, so it not compatible with unmodified software for these machines.
+
 ## Jumper Descriptions
-
-Here are recommended default jumper configurations.  See jumper description below for more detail on each jumper.
-
-### ColecoVision-compatible Configuration
-| Jumper | Jumper Block Position | Results |
-|---|---|---|
-| `J4` | 6th from left | Port A0-BF |
-| `J6` | Right* | Upper half of port range selected by `J4` |
-| `JP1` | Lower | Ignore bits 1 and 2 |
-| `JP2` | Lower | Ignore bit 3 | 
-| `JP4` | Lower | TMS9918A interrupts sent to NMI |
-| `J7` | _None_ | This is the clock signal header |
-
-This configuration matches the port and interrupts used in the example programs by default.
-
-* Technically, the entire A0-BF range is assigned to the TMS9918A on a real ColecoVision, but all known games only use ports BE and BF, so it is safe to limit address decoding to B0-BF.
-
-### MSX-compatible Configuration
-| Jumper | Jumper Block Position | Results |
-|---|---|---|
-| `J4` | 5th from left | Port 80-9F |
-| `J6` | Right | Upper half of port range selected by `J4` |
-| `JP1` | Upper | Ports 98 & 99 |
-| `JP2` | Upper | Ports 98 & 99 | 
-| `JP4` | Upper | TMS9918A interrupts sent to INT |
-| `J7` | _None_ | This is the clock signal header |
-
-This configuration does not work with the port and interrupts used in the example programs by default. To make the examples compatible with these jumper settings:
-- Set `tmsram` to 98 and `tmsreg` to 99 in `tms.asm`.
-- Change `usenmi: equ 1` to `usenmi: equ 0` in the example programs `nyan.asm`, `plasma.asm`, and `sprite.asm` to use INT instead of NMI.
 
 ### Port Address Jumpers
 
-* `J4` configures address bits 7-5 which lets you select a block of 32 addresses: 00-1F (left) ... E0-FF (right). For ColecoVision, you would set this to A0-BF (6th position). For MSX, you'd set it to 80-9F (5th position).  For Sord M5, you'd set it to 00-1F (1st position).
-* `J6` configures address bit 4. There are 3 options: ignore (left), 0 (middle), or 1 (right). This lets you use the entire 32 address range, the lower half, or the upper half, respectively. For ColecoVision, you would set this to ignore (left). For MSX and Sord, you would set it to 1 (right).
-* `JP1` configures address bit 2 and 1. In the upper position, they must both be 0. In the lower position, they are ignored.  For MSX, you would set this to the upper position. For ColecoVision and Sord, you would set it to the lower position.
-* `JP2` configures address bit 3. In the upper position, it must be 1. In the lower position, it is ignored.  For MSX, you would set this to the upper position. For ColecoVision or Sord, you would set it to the lower position.
+The Z80 uses 8 bit I/O addresses.  Four jumpers on this board control which I/O addresses the TMS9918A is assigned to. Each jumper controls one or more bits within the address:
+
+* `J4` configures A7-A5 which lets you select a block of 32 addresses from 00-1F (left) to E0-FF (right). 
+* `J6` configures A4. There are 3 options: ignore (left), 0 (middle), or 1 (right). This lets you choose the entire 32 address range selected by J4, the lower half, or the upper half, respectively. 
+* `JP2` configures A3. In the upper position, it must be 1. In the lower position, it is ignored.  
+* `JP1` configures A2 and A1. In the upper position, they must both be 0. In the lower position, they are ignored.
+* There is no jumper for A0. When A0 is low (0) the VRAM is addressed, when it is high (1), the VDP control register is addressed.
 
 ### Interrupt Configuration Jumper
-The jumper `JP4` is used to determine whether to send the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. ColecoVision connects the video interrupt to NMI whereas MSX uses INT, and most other systems do as well.
+The jumper `JP4` is used to determine whether to send the TMS9918A interrupt signal to either INT (upper position) or NMI (lower position) on the RC2014 bus. 
 
 **Warning**: The TMS9918A does not have an open collector interrupt output. If you have other cards that make use of the /INT line, such as the SIO card that comes with the RC2014, it's possible the TMS9918A will fight with other chips for control of the interrupt line, which will prevent proper operation and could potentially damage both chips. For safety, it is recommended to use NMI instead of INT in this case. REV4 of the board adds a diode to prevent hardware damage; however, if multiple peripherals are generating interrupts, it could still lead to unpredictable software behavior.
 
@@ -117,7 +110,7 @@ These pins can be used as follows:
 
 ## License
 
-Copyright 2018 J.B. Langston
+Copyright 2018-2020 J.B. Langston
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
