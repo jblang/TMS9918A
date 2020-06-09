@@ -22,9 +22,6 @@ tmsfont:
 msg:    
         defb    "ASCII Character Set", 0
 
-notmsmsg:
-        defb    "TMS9918A not found, aborting!$"
-dcntls: defb    0
 oldsp:
         defw 0
         defs 64
@@ -37,16 +34,11 @@ start:
         call    z180detect                      ; detect Z180
         ld      e, 0
         jp      nz, noz180
-        ld      hl, dcntls
-        ld      c, Z180_DCNTL
-        call    z180save
-        ld      a, 4
-        call    z180iowait
         call    z180getclk                      ; get clock multiple
 noz180: call    tmssetwait                      ; set VDP wait loop based on clock multiple
 
         call    tmsprobe                        ; find what port TMS9918A listens on
-        jp      nz, notms
+        jp      z, notms
 
         ld      hl, tmsfont                     ; pointer to font
         call    tmstextmode                     ; initialize text mode
@@ -82,12 +74,11 @@ nextchar:
         jp      nextline                        ; do the next line
 
 exit:
-        ld      hl, dcntls
-        ld      c, Z180_DCNTL
-        call    z180restore
         ld      sp, (oldsp)
         rst     0
 
+notmsmsg:
+        defb    "TMS9918A not found, aborting!$"
 notms:  ld      de, notmsmsg
         call    strout
         jp      exit

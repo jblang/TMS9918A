@@ -84,34 +84,34 @@ z180base:       defw 0
 z180regs:       defs 40h, 0
 
 ; Detect Z180 and find base address
-; sets z180base to found address, or FFh if not found
+;       returns Z180 base address in A, or 0ffh if not found
+;       Z is set if Z180 found, clear if not found
+;       also sets z180base variable
 z180detect:
-        ld      bc, 202h                ; load 2 x 2 in bc
-        defb    0edh, 04ch              ; mlt bc on Z180, nop on Z80
-        ld      a,c
-        cp      4                       ; 2 x 2 = 4?
+        ld      a, 0                    ; check behavior of DAA
+        dec     a
+        daa                             ; on a Z80 this sequence results in 99H
+        cp      0f9h                    ; on a Z180 it results in F9H
         ld      a, 0ffh
-        jp      nz, z180l1              ; no, not a Z180
-        ld      bc, 0ffh                ; check for ICR in each of the possible locations
-        in      a, (c)
+        jp      nz, z180l1              ; not a Z180
+        ; found a Z180, look for ICR
+        defb    0edh, 38h, 0ffh         ; in0 a, (0ffh)
         and     0c0h
         cp      0c0h
         jp      z, z180l1
-        ld      bc, 0bfh
-        in      a, (c)
+        defb    0edh, 38h, 0bfh         ; in0 a, (0bfh)
         and     0c0h
         cp      80h
         jp      z, z180l1
-        ld      bc, 7fh
-        in      a, (c)
+        defb    0edh, 38h, 7fh          ; in0 a, (7fh)
         and     0c0h
         cp      40h
         jp      z, z180l1
-        ld      bc,3fh
-        in      a,(c)
+        defb    0edh, 38h, 3fh          ; in0 a, (3fh)
         and     0c0h
         jp	z, z180l1
 	ld	a, 0ffh			; couldn't find ICR
+        or      a
 z180l1: ld      (z180base), a
         ret
 

@@ -33,8 +33,6 @@ grid2:  defs    grids
 cmrs:   defb    0                               ; original Z180 register values
 ccrs:   defb    0
 dcntls: defb    0
-notmsmsg:
-        defb    "TMS9918A not found, aborting!$"
 
 oldsp:  defw    0                
         defs    40h
@@ -56,7 +54,7 @@ start:
         call    z180save
         ld      a, 1
         call    z180memwait                     ; memory waits required for faster clock
-        ld      a, 4                            ; io waits required for faster clock
+        ld      a, 3                            ; io waits required for faster clock
         call    z180iowait
         call    z180clkfast                     ; moar speed!
         call    z180getclk                      ; get clock multiple
@@ -64,13 +62,13 @@ noz180:
         call    tmssetwait                      ; set VDP wait loop based on clock multiple
 
         call    tmsprobe                        ; find what port TMS9918A listens on
-        jp      nz, notms
+        jp      z, notms
 
 
         call    tmstile
         
-        ld      de, ptab                      ; load pattern table
-        ld      b, ncolor                    ; (one copy for each color)
+        ld      de, ptab                        ; load pattern table
+        ld      b, ncolor                       ; (one copy for each color)
 patloop:
         push    bc
         ld      hl, patterns
@@ -96,10 +94,10 @@ patloop:
 
         ld      de, 0                           ; clear frame counter
 mainloop:
-        ld      hl, (ngrid)                  ; init cell pointer
-        ld      c, gridh                   ; init row counter
+        ld      hl, (ngrid)                     ; init cell pointer
+        ld      c, gridh                        ; init row counter
 yloop:
-        ld      b, gridw                    ; init column counter
+        ld      b, gridw                        ; init column counter
 xloop:
         ; this can be any of these: wave, wave2, gradient, or munching
         call    wave2                           ; calculate current cell
@@ -115,7 +113,7 @@ xloop:
         ld      ix, 3
         inc     e                               ; frame/3 counter
 flipbuffers:
-        ld      bc, (ngrid)                  ; swap buffer pointers
+        ld      bc, (ngrid)                     ; swap buffer pointers
         ld      hl, (cgrid)
         ld      (cgrid), bc
         ld      (ngrid), hl
@@ -126,7 +124,7 @@ vsync:
         jr      z, vsync
 
         push    de
-        ld      hl, (cgrid)                   ; copy current data into name table
+        ld      hl, (cgrid)                     ; copy current data into name table
         ld      de, ntab
         ld      bc, grids
         call    tmswrite
@@ -147,6 +145,8 @@ exit:   ld      hl, cmrs                        ; restore Z180 registers
         ld      sp, (oldsp)                     ; put stack back to how we found it
         rst     0
 
+notmsmsg:
+        defb    "TMS9918A not found, aborting!$"
 notms:  ld      de, notmsmsg
         call    strout
         jp      exit

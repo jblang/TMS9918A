@@ -117,37 +117,34 @@ tmssetwait:
         ld      (tmswait), a
         ret
 
-; try to find TMS9918A on a port from the list
+; try to find TMS9918A on common ports
 tmsprobe:
         ld      hl, tmsports
         ld      b, tmsnumports
-tmsp1:  push    bc
-        ld      a, (hl)
-        ld      (tmsport), a            ; load a port from the list
-        call    tmsregin
-        ld      de, 0
-        call    tmswriteaddr            ; try to write TI into memory
-        ld      a, 'T'
-        call    tmsramout
-        ld      a, 'I'
-        call    tmsramout
-        ld      de, 0
-        call    tmsreadaddr             ; read it back in and see if it matches
-        call    tmsramin
-        cp      'T'
+tmsp1:  ld      a, (hl)
+        ld      (tmsport), a
+        call    tmsregin                ; clear vsync bit
+        call    tmsregin                ; check it again
+        jp      m, tmsp3                ; if still set, we're not talking to a TMS9918A
+        ld      de, 0ffffh              ; loop long enough for another vsync to occur
+tmsp2:  call    tmsregin                ; check vsync bit again
+        ret     m                       ; if it's set, we found the VDP (and Z is clear)
+        dec     de                      ; otherwise, keep trying
+        ld      a, e
+        or      d
         jp      nz, tmsp2
-        call    tmsramin
-        cp      'I'
-        jp      z, tmsp3                ; matched, we found the right port
-tmsp2:  inc     hl
-        pop     bc
-        djnz    tmsp1                   ; didn't match, try next port
-        or      1                       ; NZ to indicate we didn't find a TMS9918A anywhere
-        ret
-tmsp3:  pop     bc
+tmsp3:  inc     hl                      ; still clear after a long time, try next port
+        djnz    tmsp1
+        xor     a                       ; set Z if we ran out of ports to check
         ret
 
-tmsports:       defb 0beh, 98h, 10h, 8  ; ports for ColecoVision, MSX, Sord M5, Tatung Einstein
+tmsports:                               ; List of ports to probe:
+        defb 0beh                       ; ColecoVision / SG-1000
+        defb 98h                        ; MSX
+        defb 10h                        ; Sord M5 (conflicts with z80ctrl SIO port)
+        ;defb 8                         ; Tatung Einstein (conflicts with z80ctrl drive ports)
+        ;defb 1                         ; MTX (not supported by TMS9918A video card)
+        ; add additional ports to check here
 tmsnumports:    equ $ - tmsports
 
 ; write to configured register port

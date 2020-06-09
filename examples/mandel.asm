@@ -39,10 +39,9 @@ z_0_square_lo:  defw    0
 z_1_square_hi:  defw    0
 z_1_square_lo:  defw    0
 
-z180scmr:       defb    0                       ; original Z180 register values
-z180ccrs:       defb    0
-z180dcntls:     defb    0
-notmsmsg:       defb    "TMS9918A not found, aborting!$"
+cmrs:           defb    0                       ; original Z180 register values
+ccrs:           defb    0
+dcntls:         defb    0
 oldsp:          defw    0                
                 defs    40h
 stack:
@@ -56,25 +55,25 @@ start:          ld      (oldsp),sp              ; save old stack pointer
                 jp      nz, noz180              ; not detected; skip Z180 initialization
                 ld      hl, mul_z180            ; use Z180 hardware multiply
                 ld      (mul_function), hl
-                ld      hl, z180scmr            ; save Z180 registers
+                ld      hl, cmrs                ; save Z180 registers
                 ld      c, Z180_CMR
                 call    z180save
-                ld      hl, z180ccrs
+                ld      hl, ccrs
                 ld      c, Z180_CCR
                 call    z180save
-                ld      hl, z180dcntls
+                ld      hl, dcntls
                 ld      c, Z180_DCNTL
                 call    z180save
                 ld      a, 1
                 call    z180memwait             ; memory waits required for faster clock
-                ld      a, 4                    ; io waits required for faster clock
+                ld      a, 3                    ; io waits required for faster clock
                 call    z180iowait
                 call    z180clkfast             ; moar speed!
                 call    z180getclk              ; get clock multiple
 noz180:         call    tmssetwait              ; set VDP wait loop based on clock multiple
 
                 call    tmsprobe                ; find what port TMS9918A listens on
-                jp      nz, notms
+                jp      z, notms
 
                 call    tmsbitmap
                 xor     a                       ; clear pixel counters
@@ -90,7 +89,7 @@ outer_loop:     ld      hl, y_end               ; Is y <= y_end?
                 ld      de, (y)
                 and     a                       ; Clear carry
                 sbc     hl, de                  ; Perform the comparison
-                jp      m, exit           ; End of outer loop reached
+                jp      m, exit                 ; End of outer loop reached
 
 ;    for (x = x_start; x <= x_end; x += x_step)
 ;    {
@@ -212,18 +211,19 @@ inner_loop_end:
                 jp      z,outer_loop
 ; }
 
-exit:           ld      hl, z180scmr            ; restore Z180 registers
+exit:           ld      hl, cmrs                ; restore Z180 registers
                 ld      c, Z180_CMR
                 call    z180restore
-                ld      hl, z180ccrs
+                ld      hl, ccrs
                 ld      c, Z180_CCR
                 call    z180restore
-                ld      hl, z180dcntls
+                ld      hl, dcntls
                 ld      c, Z180_DCNTL
                 call    z180restore
                 ld      sp,(oldsp)              ; put stack back to how we found it
                 rst     0
 
+notmsmsg:       defb    "TMS9918A not found, aborting!$"
 notms:          ld      de, notmsmsg
                 call    strout
                 jp      exit
@@ -569,20 +569,7 @@ setbit:
                 ret     nz                      ; if this wasn't the last bit, we're done
 
                 ld      bc, (xypos)             ; calculate address for current x, y position
-                ld      a, b                    ; d = (y / 8)
-                rrca
-                rrca
-                rrca
-                and     1fh
-                ld      d, a
-                ld      a, c                    ; e = (x & f8) + (y & 7)
-                and     0f8h
-                ld      e, a
-                ld      a, b
-                and     7
-                or      e
-                ld      e, a
-
+                call    tmsxyaddr
                 call    tmswriteaddr            ; set write address within pattern table
                 ld      a, (pattern)            ; send the pattern to the TMS
                 call    tmsramout
