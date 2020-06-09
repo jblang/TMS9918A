@@ -1,7 +1,7 @@
 ; TMS9918A sprite example
 ; by J.B. Langston
 
-frameticks:     equ 6                           ; number of interrupts per animation frame
+vsyncdiv:       equ 6                           ; number of interrupts per animation frame
 framecount:     equ 8                           ; number of frames in animation
 
         org 100h
@@ -12,14 +12,25 @@ framecount:     equ 8                           ; number of frames in animation
         include "z180.asm"
         include "utility.asm"
 
+vsynccount:
+        defb    vsyncdiv                        ; vsync down counter
+curname:
+        defb    0                               ; name of the current sprite pattern
+xdelta:
+        defb    1                               ; direction horizontal motion
+ydelta:
+        defb    1                               ; direction vertical motion
 oldsp:
         defw    0
         defs    32
 stack:
 
 start:
+        ld      (oldsp), sp
+        ld      sp, stack
+
         call    z180detect                      ; detect Z180
-        ld      e, 0
+        ld      e, 0                            ; assume slowest clock speed for Z80
         jp      nz, noz180
         call    z180getclk                      ; get clock multiple
 noz180: call    tmssetwait                      ; set VDP wait loop based on clock multiple
@@ -27,8 +38,6 @@ noz180: call    tmssetwait                      ; set VDP wait loop based on clo
         call    tmsprobe                        ; find what port TMS9918A listens on
         jp      z, notms
 
-        ld      (oldsp), sp
-        ld      sp, stack
         call    tmsbitmap
 
         ld      bc, spritelen                   ; set up sprite patterns
@@ -36,20 +45,69 @@ noz180: call    tmssetwait                      ; set VDP wait loop based on clo
         ld      hl, sprite
         call    tmswrite
 
-        ld      a, frameticks                   ; initialize interrupt counter to frame length
-        ld      (tickcounter), a
+firstname:        
+        xor     a                               ; reset to first sprite name
+nextname:
+        ld      (curname), a                    ; save current sprite name in memory
+samename:
+        call    keypress                        ; exit on keypress
+        jp      nz, exit
 
-mainloop:
         call    tmsregin                        ; check for vsync flag
-        and     80h
-        call    nz, drawframe                   ; only update when it's set
+        jp      p, samename                     ; only update when it's set
 
-        call    keypress
-        jp      z, mainloop
+        ld      hl, xdelta                      ; move x position
+        ld      a, (sprite1x)
+        add     a, (hl)
+        ld      (sprite1x), a
+        ld      (sprite2x), a
+        cp      240                             ; bounce off the edge
+        call    z, changedir
+        or      a
+        call    z, changedir
+        ld      hl, ydelta                      ; move y position
+        ld      a, (sprite1y)
+        add     a, (hl)
+        ld      (sprite1y), a
+        ld      (sprite2y), a
+        cp      176                             ; bounce off the edge
+        call    z, changedir
+        or      a
+        call    z, changedir
+
+        ld      bc, 8                           ; update sprite attribute table
+        ld      de, 3b00h
+        ld      hl, sprite1y
+        call    tmswrite
+
+        ld      hl, vsynccount                  ; count down the vsyncs
+        dec     (hl)
+        jp      nz, samename                    ; draw the same image until it reaches 0
+        ld      a, vsyncdiv                     ; reload vsync counter when
+        ld      (hl), a
+
+        ld      a, (curname)                    ; change name pointers for sprites
+        ld      (sprite1name), a                ; set name for first sprite
+        add     a, 4                            ; add 4
+        ld      (sprite2name), a                ; set name for second sprite
+        add     a, 4
+        cp      framecount*8                    ; have we displayed all frames yet?
+        jp      nz, nextname                    ; if not, display the next frame
+        jp      firstname                       ; if so, start over with the first
 
 exit:
         ld      sp, (oldsp)
         rst     0
+
+; change direction of motion
+;       HL = pointer to direction variable
+changedir:
+        push    af
+        ld      a, (hl)
+        neg
+        ld      (hl), a
+        pop     af
+        ret
 
 notmsmsg:
         defb    "TMS9918A not found, aborting!$"
@@ -57,14 +115,6 @@ notms:  ld      de, notmsmsg
         call    strout
         jp      exit
 
-tickcounter:
-        defb 0                                  ; interrupt down counter
-currframe:
-        defb 0                                  ; current frame of animation
-xdelta:
-        defb 1                                  ; direction of x axis motion
-ydelta:
-        defb 1                                  ; directino of y axis motion
 
 ; Sprite Attributes
 sprite1y:
@@ -83,68 +133,6 @@ sprite2name:
         defb 4
 sprite2color:
         defb tmslightgreen
-
-
-; change direction of motion
-;       HL = pointer to direction variable
-changedir:
-        push    af
-        ld      a, (hl)
-        neg
-        ld      (hl), a
-        pop     af
-        ret
-
-; draw a single animation frame
-;       HL = animation data base address
-;       A = current animation frame number
-drawframe:
-        ld      hl, xdelta                      ; move x position
-        ld      a, (sprite1x)
-        add     a, (hl)
-        ld      (sprite1x), a
-        ld      (sprite2x), a
-        cp      240                             ; bounce off the edge
-        call    z, changedir
-        cp      0
-        call    z, changedir
-        ld      hl, ydelta                      ; move y position
-        ld      a, (sprite1y)
-        add     a, (hl)
-        ld      (sprite1y), a
-        ld      (sprite2y), a
-        cp      176                             ; bounce off the edge
-        call    z, changedir
-        cp      0
-        call    z, changedir
-        ld      a, (tickcounter)                ; check if we've been called frameticks times
-        or      a
-        jr      nz, framewait                   ; if not, wait to draw next animation frame
-        ld      a, (currframe)                  ; next animation frame
-        add     a, a                            ; multiply current frame x 8
-        add     a, a
-        add     a, a
-        ld      (sprite1name), a                ; set name for first sprite
-        add     a, 4                            ; add 4
-        ld      (sprite2name), a                ; set name for second sprite
-        ld      a, (currframe)                  ; next animation frame
-        inc     a
-        cp      framecount                      ; have we displayed all frames yet?
-        jr      nz, skipreset                   ; if not, display the next frame
-        ld      a, 0                            ; if so, start over at the first frame
-skipreset:
-        ld      (currframe), a                  ; save next frame in memory
-        ld      a, frameticks                   ; reset interrupt down counter
-        ld      (tickcounter), a
-        ret
-framewait:
-        ld      bc, 8                           ; send updated sprite attribute table
-        ld      de, 3b00h
-        ld      hl, sprite1y
-        call    tmswrite
-        ld      hl, tickcounter                 ; not time to switch animation frames yet
-        dec     (hl)                            ; decrement down counter
-        ret
 
 
 ; planet sprites from TI VDP Programmer's guide
