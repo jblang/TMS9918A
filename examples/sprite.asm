@@ -1,107 +1,90 @@
-; TMS9918A sprite example
+; TMS9918A SpritePatterns example
 ; by J.B. Langston
 
-vsyncdiv:       equ 6                           ; number of interrupts per animation frame
-framecount:     equ 8                           ; number of frames in animation
+VsyncDiv:       equ 6                           ; number of interrupts per animation frame
+SpriteCount:    equ 8                           ; number of frames in animation
 
-        org 100h
+        org     100h
 
-        jp start
-
-        include "tms.asm"
-        include "z180.asm"
-        include "utility.asm"
-
-vsynccount:
-        defb    vsyncdiv                        ; vsync down counter
-curname:
-        defb    0                               ; name of the current sprite pattern
-xdelta:
-        defb    1                               ; direction horizontal motion
-ydelta:
-        defb    1                               ; direction vertical motion
-oldsp:
-        defw    0
-        defs    32
-stack:
-
-start:
-        ld      (oldsp), sp
-        ld      sp, stack
+        ld      (OldSP), sp
+        ld      sp, Stack
 
         call    z180detect                      ; detect Z180
         ld      e, 0                            ; assume slowest clock speed for Z80
-        jp      nz, noz180
+        jp      nz, NoZ180
         call    z180getclk                      ; get clock multiple
-noz180: call    tmssetwait                      ; set VDP wait loop based on clock multiple
+NoZ180: call    TmsSetWait                      ; set VDP wait loop based on clock multiple
 
-        call    tmsprobe                        ; find what port TMS9918A listens on
-        jp      z, notms
+        call    TmsProbe                        ; find what port TMS9918A listens on
+        jp      z, NoTms
 
-        call    tmsbitmap
+        call    TmsBitmap
 
-        ld      bc, spritelen                   ; set up sprite patterns
-        ld      de, 1800h
-        ld      hl, sprite
-        call    tmswrite
+        ld      a, TmsSprite32
+        call    TmsSpriteConfig
 
-firstname:        
-        xor     a                               ; reset to first sprite name
-nextname:
-        ld      (curname), a                    ; save current sprite name in memory
-samename:
-        call    keypress                        ; exit on keypress
-        jp      nz, exit
+        ld      bc, SpritePatternLen            ; set up SpritePatterns patterns
+        ld      de, (TmsSpritePatternAddr)
+        ld      hl, SpritePatterns
+        call    TmsWrite
 
-        call    tmsregin                        ; check for vsync flag
-        jp      p, samename                     ; only update when it's set
+FirstSprite:        
+        xor     a                               ; reset to first SpritePatterns name
+NextSprite:
+        ld      (CurrSprite), a                 ; save current SpritePatterns name in memory
+SameSprite:
+        call    keypress                        ; Exit on keypress
+        jp      nz, Exit
 
-        ld      hl, xdelta                      ; move x position
-        ld      a, (sprite1x)
+        call    TmsRegIn                        ; check for vsync flag
+        jp      p, SameSprite                   ; only update when it's set
+
+        ld      hl, XDelta                      ; move x position
+        ld      a, (Sprite1X)
         add     a, (hl)
-        ld      (sprite1x), a
-        ld      (sprite2x), a
+        ld      (Sprite1X), a
+        ld      (Sprite2X), a
         cp      240                             ; bounce off the edge
-        call    z, changedir
+        call    z, ChangeDirection
         or      a
-        call    z, changedir
-        ld      hl, ydelta                      ; move y position
-        ld      a, (sprite1y)
+        call    z, ChangeDirection
+        ld      hl, YDelta                      ; move y position
+        ld      a, (Sprite1Y)
         add     a, (hl)
-        ld      (sprite1y), a
-        ld      (sprite2y), a
+        ld      (Sprite1Y), a
+        ld      (Sprite2Y), a
         cp      176                             ; bounce off the edge
-        call    z, changedir
+        call    z, ChangeDirection
         or      a
-        call    z, changedir
+        call    z, ChangeDirection
 
-        ld      bc, 8                           ; update sprite attribute table
-        ld      de, 3b00h
-        ld      hl, sprite1y
-        call    tmswrite
+        ld      bc, 8                           ; update SpritePatterns attribute table
+        ld      de, (TmsSpriteAttrAddr)
+        ld      hl, Sprite1Y
+        call    TmsWrite
 
-        ld      hl, vsynccount                  ; count down the vsyncs
+        ld      hl, VsyncCount                  ; count down the vsyncs
         dec     (hl)
-        jp      nz, samename                    ; draw the same image until it reaches 0
-        ld      a, vsyncdiv                     ; reload vsync counter when
+        jp      nz, SameSprite                  ; draw the same image until it reaches 0
+        ld      a, VsyncDiv                     ; reload vsync counter when
         ld      (hl), a
 
-        ld      a, (curname)                    ; change name pointers for sprites
-        ld      (sprite1name), a                ; set name for first sprite
+        ld      a, (CurrSprite)                 ; change name pointers for sprites
+        ld      (Sprite1Name), a                ; set name for first SpritePatterns
         add     a, 4                            ; add 4
-        ld      (sprite2name), a                ; set name for second sprite
+        ld      (Sprite2Name), a                ; set name for second SpritePatterns
         add     a, 4
-        cp      framecount*8                    ; have we displayed all frames yet?
-        jp      nz, nextname                    ; if not, display the next frame
-        jp      firstname                       ; if so, start over with the first
+        cp      SpriteCount*8                   ; have we displayed all frames yet?
+        jp      nz, NextSprite                  ; if not, display the next frame
+        jp      FirstSprite                     ; if so, start over with the first
 
-exit:
-        ld      sp, (oldsp)
+Exit:
+        ld      sp, (OldSP)
         rst     0
 
 ; change direction of motion
 ;       HL = pointer to direction variable
-changedir:
+ChangeDirection:
         push    af
         ld      a, (hl)
         neg
@@ -109,34 +92,50 @@ changedir:
         pop     af
         ret
 
-notmsmsg:
+NoTmsMessage:
         defb    "TMS9918A not found, aborting!$"
-notms:  ld      de, notmsmsg
+NoTms:  ld      de, NoTmsMessage
         call    strout
-        jp      exit
+        jp      Exit
+
+        include "tms.asm"
+        include "z180.asm"
+        include "utility.asm"
+
+VsyncCount:
+        defb    VsyncDiv                        ; vsync down counter
+CurrSprite:
+        defb    0                               ; name of the current SpritePatterns pattern
+XDelta:
+        defb    1                               ; direction horizontal motion
+YDelta:
+        defb    1                               ; direction vertical motion
+OldSP:
+        defw    0
+        defs    32
+Stack:
 
 
 ; Sprite Attributes
-sprite1y:
+Sprite1Y:
         defb 88
-sprite1x:
+Sprite1X:
         defb 0
-sprite1name:
+Sprite1Name:
         defb 0
-sprite1color: 
-        defb tmsdarkblue
-sprite2y:
+Sprite1Color: 
+        defb TmsDarkBlue
+Sprite2Y:
         defb 88
-sprite2x:
+Sprite2X:
         defb 0
-sprite2name:
+Sprite2Name:
         defb 4
-sprite2color:
-        defb tmslightgreen
-
+Sprite2Color:
+        defb TmsLightGreen
 
 ; planet sprites from TI VDP Programmer's guide
-sprite:
+SpritePatterns:
         ; Sprite world0 pattern 1
         defb    007h,01Ch,038h,070h,078h,05Ch,00Eh,00Fh
         defb    00Fh,01Fh,07Fh,063h,073h,03Dh,01Fh,007h
@@ -217,4 +216,4 @@ sprite:
         defb    0C0h,081h,000h,070h,030h,008h,000h,000h
         defb    000h,000h,000h,060h,030h,006h,08Fh,00Fh
         defb    01Fh,07Fh,0FEh,0F8h,070h,020h,000h,000h
-spritelen: equ $-sprite
+SpritePatternLen: equ $-SpritePatterns

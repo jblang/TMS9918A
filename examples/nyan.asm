@@ -4,22 +4,103 @@
 ; Nyan Cat theme by Karbofos: https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/
 ; PTx Player by S.V.Bulba <vorobey@mail.khstu.ru>
 
-useay:        equ 0                   ; whether to play music on the AY-3 card
-vsyncdiv:     equ 3                   ; number of vsyncs per animation frame
+UseAY:        equ 1                   ; whether to play music on the AY-3 card
+VsyncDiv:     equ 3                   ; number of vsyncs per Animation frame
 
         org     100h
-        jp      start
+
+        ld      (OldSP),sp              ; set up stack
+        ld      sp, Stack
+
+        call    z180detect              ; detect Z180
+        ld      e, 0
+        jp      nz, NoZ180
+        call    z180getclk              ; get clock multiple
+NoZ180: call    TmsSetWait              ; set VDP wait loop based on clock multiple
+
+        call    TmsProbe                ; find what port TMS9918A listens on
+        jp      z, NoTms
+
+        call    TmsMulticolor           ; initialize tms for multicolor mode
+        ld      a, TmsDarkBlue          ; set background color
+        call    TmsBackground
+
+if UseAY
+        call    START
+        call    Timer
+        ld      (LastTimer),a
+endif
+
+FirstFrame:
+        ld      hl, Animation           ; set up the first frame
+NextFrame:
+        ld      (CurrFrame), hl         ; save next Animation frame address
+SkipDraw:
+        call    keypress                ; Exit on keypress
+        jp      nz, Exit
+
+if UseAY
+        call    Timer                   ; get 50hz counter
+        ld      hl, LastTimer                ; compare to LastTimer value
+        cp      (hl)
+        ld      (hl), a                 ; save current value for next time
+        call    nz, PLAY                ; if it changed, play one quark of the song
+endif
+
+        call    TmsRegIn                ; check for vsync
+        jp      p, SkipDraw             ; don't draw until it's set
+
+        ld      hl, VsyncCount          ; decrement the vsync counter
+        dec     (hl)
+        jp      nz, SkipDraw            ; don't draw until it's zero
+
+        ld      a, VsyncDiv             ; reset vsync counter
+        ld      (hl), a
+        
+        ld      hl, (CurrFrame)         ; get address of current frame
+        ld      de, (TmsPatternAddr)    ; pattern table address in vram
+        ld      bc, TmsMulticolorPatternLen ; length of one frame
+        call    TmsWrite                ; copy frame to vram, leaves hl pointing to next frame
+
+        ld      de, EndAnimation        ; check if hl is past the LastTimer frame
+        or      a
+        sbc     hl, de
+        add     hl, de
+        jp      z, FirstFrame           ; if so, reset to first frame
+        jp      NextFrame
+
+Exit:
+if UseAY
+        call    MUTE
+endif
+        ld      sp, (OldSP)
+        rst     0
+
+NoTmsMessage:
+        defb    "TMS9918A not found, aborting!$"
+NoTms:  ld      de, NoTmsMessage
+        call    strout
+        jp      Exit
+
+if UseAY
+LastTimer:   defb    0
+Timer:  ld      b, 0f8h                 ; BIOS SYSGET function
+        ld      c, 0d0h                 ; TIMER sub-function
+        rst     8                       ; Call BIOS
+        ld      a, l                    ; MSB to A
+        ret                             ; Return to loop
+endif
 
         include "tms.asm"               ; TMS graphics routines
         include "z180.asm"              ; Z180 routines
         include "utility.asm"           ; BDOS utility routines
-if useay
+if UseAY
         include "PT3.asm"               ; PT3 player
         incbin  "nyan/nyan.pt3"         ; music data
 endif
 
 ; Change included binary for different cat
-animation:
+Animation:
         ; change incbin to binary for z88dk
         incbin  "nyan/nyan.bin"         ; The Classic
         ;incbin "nyan/nyands.bin"       ; Skrillex
@@ -30,93 +111,11 @@ animation:
         ;incbin "nyan/nyann2.bin"       ; Cheese Cat
         ;incbin "nyan/nyanus.bin"       ; USA
         ;incbin "nyan/nyanxx.bin"       ; Nyanicorn
-endanimation:
-vsynccount:
-        defb    vsyncdiv                ; vsync down counter
-currframe:
-        defw    0                       ; current frame of animation
-oldsp:  defw    0                
+EndAnimation:
+VsyncCount:
+        defb    VsyncDiv                ; vsync down counter
+CurrFrame:
+        defw    0                       ; current frame of Animation
+OldSP:  defw    0                
         defs    40h
-stack:
-start:
-        ld      (oldsp),sp              ; set up stack
-        ld      sp, stack
-
-        call    z180detect              ; detect Z180
-        ld      e, 0
-        jp      nz, noz180
-        call    z180getclk              ; get clock multiple
-noz180: call    tmssetwait              ; set VDP wait loop based on clock multiple
-
-        call    tmsprobe                ; find what port TMS9918A listens on
-        jp      z, notms
-
-        call    tmsmulticolor           ; initialize tms for multicolor mode
-        ld      a, tmsdarkblue          ; set background color
-        call    tmsbackground
-
-if useay
-        call    START
-        call    timer
-        ld      (last),a
-endif
-
-firstframe:
-        ld      hl, animation           ; set up the first frame
-nextframe:
-        ld      (currframe), hl         ; save next animation frame address
-skipdraw:
-        call    keypress                ; exit on keypress
-        jp      nz, exit
-
-if useay
-        call    timer                   ; get 50hz counter
-        ld      hl, last                ; compare to last value
-        cp      (hl)
-        ld      (hl), a                 ; save current value for next time
-        call    nz, PLAY                ; if it changed, play one quark of the song
-endif
-
-        call    tmsregin                ; check for vsync
-        jp      p, skipdraw             ; don't draw until it's set
-
-        ld      hl, vsynccount          ; decrement the vsync counter
-        dec     (hl)
-        jp      nz, skipdraw            ; don't draw until it's zero
-
-        ld      a, vsyncdiv             ; reset vsync counter
-        ld      (hl), a
-        
-        ld      hl, (currframe)         ; get address of current frame
-        ld      de, 0                   ; pattern table address in vram
-        ld      bc, 600h                ; length of one frame
-        call    tmswrite                ; copy frame to vram, leaves hl pointing to next frame
-
-        ld      de, endanimation        ; check if hl is past the last frame
-        or      a
-        sbc     hl, de
-        add     hl, de
-        jp      z, firstframe           ; if so, reset to first frame
-        jp      nextframe
-
-exit:
-if useay
-        call    MUTE
-endif
-        ld      sp, (oldsp)
-        rst     0
-
-notmsmsg:
-        defb    "TMS9918A not found, aborting!$"
-notms:  ld      de, notmsmsg
-        call    strout
-        jp      exit
-
-if useay
-last:   defb    0
-timer:  ld      b, 0f8h                 ; BIOS SYSGET function
-        ld      c, 0d0h                 ; TIMER sub-function
-        rst     8                       ; Call BIOS
-        ld      a, l                    ; MSB to A
-        ret                             ; Return to loop
-endif
+Stack:

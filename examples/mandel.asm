@@ -70,12 +70,12 @@ start:          ld      (oldsp),sp              ; save old stack pointer
                 call    z180iowait
                 call    z180clkfast             ; moar speed!
                 call    z180getclk              ; get clock multiple
-noz180:         call    tmssetwait              ; set VDP wait loop based on clock multiple
+noz180:         call    TmsSetWait              ; set VDP wait loop based on clock multiple
 
-                call    tmsprobe                ; find what port TMS9918A listens on
+                call    TmsProbe                ; find what port TMS9918A listens on
                 jp      z, notms
 
-                call    tmsbitmap
+                call    TmsBitmap
                 xor     a                       ; clear pixel counters
                 ld      (xypos), a
                 ld      (xypos+1), a
@@ -569,16 +569,19 @@ setbit:
                 ret     nz                      ; if this wasn't the last bit, we're done
 
                 ld      bc, (xypos)             ; calculate address for current x, y position
-                call    tmsxyaddr
-                call    tmswriteaddr            ; set write address within pattern table
+                call    TmsXYAddr
+                ld      hl, (TmsPatternAddr)
+                add     hl, de
+                ex      de, hl
+                call    TmsWriteAddr            ; set write address within pattern table
                 ld      a, (pattern)            ; send the pattern to the TMS
-                call    tmsramout
+                call    TmsRamOut
 
-                ld      bc, 2000h               ; add the color table base address
                 ex      de, hl
-                add     hl, bc
+                ld      hl, (TmsColorAddr)     ; add the color table base address
+                add     hl, de
                 ex      de, hl
-                call    tmswriteaddr            ; set write address within color table
+                call    TmsWriteAddr            ; set write address within color table
                 ld      a, (primary)            ; load primary color into upper 4 bits
                 add     a, a
                 add     a, a
@@ -586,7 +589,7 @@ setbit:
                 add     a, a
                 ld      hl, secondary           ; load secondary color into lower 4 bits
                 or      (hl)
-                call    tmsramout
+                call    TmsRamOut
 
                 ld      hl, (xypos)             ; increase next x/y position by 8 pixels
                 ld      de, 8

@@ -5,51 +5,25 @@
 ;
 ; Original source: https://github.com/74hc595/Ultim809/blob/master/code/user/plasma/plasma.asm
 
-sptab:  equ 0h
-ptab:   equ 800h
-satab:  equ 1000h
-ntab:   equ 1400h
-ctab:   equ 2000h
-
-gridw:  equ 32                                  ; grid width
-gridh:  equ 24                                  ; grid height
-grids:  equ gridw*gridh                         ; grid size
-ncolor: equ 8                                   ; number of colors
+GridWidth:  equ 32                              ; grid width
+GridHeight:  equ 24                             ; grid height
+GridSize:  equ GridWidth*GridHeight             ; grid size
+NumColors: equ 8                                ; number of Colors
 
         org 100h
 
-        jp start
-
-        include "tms.asm"
-        include "z180.asm"
-        include "utility.asm"
-
-cgrid:  defw 0                                  ; pointers to grid buffers
-ngrid:  defw 0
-
-grid1:  defs    grids                           ; grid buffers
-grid2:  defs    grids
-
-cmrs:   defb    0                               ; original Z180 register values
-ccrs:   defb    0
-dcntls: defb    0
-
-oldsp:  defw    0                
-        defs    40h
-stack:
-start:
-        ld      (oldsp), sp
-        ld      sp, stack
+        ld      (OldSP), sp
+        ld      sp, Stack
         call    z180detect                      ; detect Z180
         ld      e, 0
-        jp      nz, noz180                      ; not detected; skip Z180 initialization
-        ld      hl, cmrs                        ; save Z180 registers
+        jp      nz, NoZ180                      ; not detected; skip Z180 initialization
+        ld      hl, SaveCMR                     ; save Z180 registers
         ld      c, Z180_CMR
         call    z180save
-        ld      hl, ccrs
+        ld      hl, SaveCCR
         ld      c, Z180_CCR
         call    z180save
-        ld      hl, dcntls
+        ld      hl, SaveDCNTL
         ld      c, Z180_DCNTL
         call    z180save
         ld      a, 1
@@ -58,115 +32,114 @@ start:
         call    z180iowait
         call    z180clkfast                     ; moar speed!
         call    z180getclk                      ; get clock multiple
-noz180:
-        call    tmssetwait                      ; set VDP wait loop based on clock multiple
+NoZ180:
+        call    TmsSetWait                      ; set VDP wait loop based on clock multiple
 
-        call    tmsprobe                        ; find what port TMS9918A listens on
-        jp      z, notms
+        call    TmsProbe                        ; find what port TMS9918A listens on
+        jp      z, NoTms
 
-
-        call    tmstile
+        call    TmsTile
         
-        ld      de, ptab                        ; load pattern table
-        ld      b, ncolor                       ; (one copy for each color)
-patloop:
+        ld      de, (TmsPatternAddr)            ; load pattern table
+        ld      b, NumColors                    ; (one copy for each color)
+PatternLoop:
         push    bc
-        ld      hl, patterns
-        ld      bc, patlen
-        call    tmswrite
+        ld      hl, Patterns
+        ld      bc, PatternLen
+        call    TmsWrite
         pop     bc
         ex      de, hl
-        ld      de, patlen
+        ld      de, PatternLen
         add     hl, de
         ex      de, hl
-        djnz    patloop
+        djnz    PatternLoop
 
-        ld      hl, colors                      ; load color table
-        ld      de, ctab
-        ld      bc, colorlen
-        call    tmswrite
+        ld      hl, Colors                      ; load color table
+        ld      de, (TmsColorAddr)
+        ld      bc, ColorLen
+        call    TmsWrite
 
         ld      hl, grid1                       ; init variables
-        ld      (cgrid), hl
+        ld      (CurrGrid), hl
         ld      hl, grid2
-        ld      (ngrid), hl
+        ld      (NextGrid), hl
         ld      ix, 3                           ; divide by 3 counter
 
         ld      de, 0                           ; clear frame counter
-mainloop:
-        ld      hl, (ngrid)                     ; init cell pointer
-        ld      c, gridh                        ; init row counter
-yloop:
-        ld      b, gridw                        ; init column counter
-xloop:
-        ; this can be any of these: wave, wave2, gradient, or munching
-        call    wave2                           ; calculate current cell
+MainLoop:
+        ld      hl, (NextGrid)                  ; init cell pointer
+        ld      c, GridHeight                   ; init row counter
+XLoop:
+        ld      b, GridWidth                    ; init column counter
+YLoop:
+        ; this can be any of these: LooseWave, TightWave, Gradient, or Munching
+        call    TightWave                       ; calculate current cell
         and     7fh
         ld      (hl), a                         ; save cell in buffer
         inc     hl                              ; cell pointer
-        djnz    xloop                           ; next column
+        djnz    YLoop                           ; next column
         dec     c                               ; next row
-        jp      nz, yloop
+        jp      nz, XLoop
         inc     d                               ; frame counter
         dec     ix
-        jp      nz, flipbuffers
+        jp      nz, FlipBuffers
         ld      ix, 3
         inc     e                               ; frame/3 counter
-flipbuffers:
-        ld      bc, (ngrid)                     ; swap buffer pointers
-        ld      hl, (cgrid)
-        ld      (cgrid), bc
-        ld      (ngrid), hl
+FlipBuffers:
+        ld      bc, (NextGrid)                  ; swap buffer pointers
+        ld      hl, (CurrGrid)
+        ld      (CurrGrid), bc
+        ld      (NextGrid), hl
 
-vsync:
-        call    tmsregin
+WaitVsync:
+        call    TmsRegIn
         and     80h
-        jr      z, vsync
+        jr      z, WaitVsync
 
         push    de
-        ld      hl, (cgrid)                     ; copy current data into name table
-        ld      de, ntab
-        ld      bc, grids
-        call    tmswrite
+        ld      hl, (CurrGrid)                  ; copy current data into name table
+        ld      de, (TmsNameAddr)
+        ld      bc, GridSize
+        call    TmsWrite
         pop     de
 
         call    keypress
-        jp      z, mainloop
+        jp      z, MainLoop
 
-exit:   ld      hl, cmrs                        ; restore Z180 registers
+Exit:   ld      hl, SaveCMR                     ; restore Z180 registers
         ld      c, Z180_CMR
         call    z180restore
-        ld      hl, ccrs
+        ld      hl, SaveCCR
         ld      c, Z180_CCR
         call    z180restore
-        ld      hl, dcntls
+        ld      hl, SaveDCNTL
         ld      c, Z180_DCNTL
         call    z180restore
-        ld      sp, (oldsp)                     ; put stack back to how we found it
+        ld      sp, (OldSP)                     ; put Stack back to how we found it
         rst     0
 
-notmsmsg:
+NoTmsMessage:
         defb    "TMS9918A not found, aborting!$"
-notms:  ld      de, notmsmsg
+NoTms:  ld      de, NoTmsMessage
         call    strout
-        jp      exit
+        jp      Exit
 
-gradient:                                       ; diagonal gradient
+Gradient:                                       ; Diagonal Gradient
         ld      a, b                            ; x
         add     a, c                            ; x + y
         sub     d                               ; x + y - time
         ret
 
-munching:                                       ; munching squares
+Munching:                                       ; Munching squares
         ld      a, b                            ; x
         dec     a                               ; x - 1
         xor     c                               ; (x - 1) xor y
         add     a, d                            ; ((x - 1) xor y) + time
         ret
 
-wave:                                           ; plasma 1
+LooseWave:                                      ; Plasma
         push    hl
-        ld      h, sin8 >> 8
+        ld      h, SinTable >> 8
         ld      a, b                            ; x
         add     a, d                            ; x + time
         ld      l, a
@@ -178,10 +151,10 @@ wave:                                           ; plasma 1
         pop     hl
         ret
 
-wave2:                                          ; plasma 2
+TightWave:                                      ; Plasma
         push    hl
         push    bc
-        ld      h, sin8 >> 8
+        ld      h, SinTable >> 8
         ld      a, b                            ; x
         add     a, e                            ; x + time/3
         ld      l, a
@@ -201,9 +174,31 @@ wave2:                                          ; plasma 2
         pop     hl
         ret
 
-; color table
+        include "tms.asm"
+        include "z180.asm"
+        include "utility.asm"
 
-colors: defb    098h,098h
+CurrGrid:
+        defw 0                                  ; pointers to grid buffers
+NextGrid:
+        defw 0
+
+grid1:  defs    GridSize                        ; grid buffers
+grid2:  defs    GridSize
+
+SaveCMR:
+        defb    0                               ; original Z180 register values
+SaveCCR:
+        defb    0
+SaveDCNTL:
+        defb    0
+
+OldSP:  defw    0                
+        defs    40h
+Stack:
+
+; Rainbow colors
+Colors: defb    098h,098h
         defb    0B9h,0B9h
         defb    03Bh,03Bh
         defb    073h,073h
@@ -211,11 +206,10 @@ colors: defb    098h,098h
         defb    045h,045h
         defb    0D4h,0D4h
         defb    08Dh,08Dh
-colorlen: equ $ - colors
+ColorLen: equ $ - Colors
 
-; pattern table
-
-patterns:
+; Dithering patterns
+Patterns:
 ; tile (0,0)-(7,7)
         defb    00000000b
         defb    00000000b
@@ -360,11 +354,11 @@ patterns:
         defb    11111111b
         defb    11111111b
         defb    11111111b
-patlen: equ $ - patterns
+PatternLen: equ $ - Patterns
 
 ; sine table
         defs    (($ & 0FF00h) + 100h) - $       ; page align
-sin8:
+SinTable:
         defb    0,3,6,9,12,15,18,21,24,27,30,34,37,39
         defb    42,45,48,51,54,57,60,62,65,68,70,73,75
         defb    78,80,83,85,87,90,92,94,96,98,100,102
