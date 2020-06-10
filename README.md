@@ -53,17 +53,17 @@ The following jumper configurations are recommended for compatibility with unmod
 The provided example programs automatically detect the TMS9918A on any of the following ports, so no change to the example code is necessary.
 
 |  | ColecoVision / SG-1000 | MSX | Sord M5 | Tatung Einstein | 
-|---|---|---|---|---|---|
+|---|---|---|---|---|
 | Ports | B0-BF* | 98/99 | 10/11** | 08/09 |
 | `J4` (A7-A5) | 2nd from right (101) | 3rd from right (100) | Far left (000) | Far left (000) |
-| `J6` (A4) | Right (1) | Right (1) | Right (1) | Middle (0) | |
-| `JP2` (A3) | Lower (Ignore) | Upper (1) | Lower (Ignore) | Upper (1) |
-| `JP1` (A2-A1) | Lower (Ignore) | Upper (00) | Upper (00) | Upper (00) |
+| `J6` (A4) | Right (1) | Right (1) | Right (1) | Middle (0) |
+| `JP2` (A3) | Lower (X) | Upper (1) | Lower (X) | Upper (1) |
+| `JP1` (A2-A1) | Lower (XX) | Upper (00) | Upper (00) | Upper (00) |
 | `JP4` (Interrupt) | Lower (NMI) | Upper (INT) | Lower (NMI) | Upper (INT) |
 
 \* On a real ColecoVision, the entire A0-BF range is assigned to the TMS9918A, but since all known games only use ports BE and BF, address decoding can be limited to B0-BF.  If you want to decode the full range A0-BF, place J6 in the left position instead.
 
-\** On a real Sord M5, only ports 10 and 11 are assigned to the TMS9918A, but since the address decoding for bit 3 can only be set to 1 or ignore, this configuration assigns both 10/11 and 18/19 to the TMS9918A.
+\** On a real Sord M5, only ports 10 and 11 are assigned to the TMS9918A, but since the address decoding for bit 3 can only be set to 1 or don't care, this configuration assigns both 10/11 and 18/19 to the TMS9918A.
 
 Note: This board cannot decode the port addresses used by the MTX (not to be confused with MSX) and Spectravideo SV-3xx machines, so it not compatible with unmodified software for these machines.
 
@@ -74,9 +74,9 @@ Note: This board cannot decode the port addresses used by the MTX (not to be con
 The Z80 uses 8 bit I/O addresses.  Four jumpers on this board control which I/O addresses the TMS9918A is assigned to. Each jumper controls one or more bits within the address:
 
 * `J4` configures A7-A5 which lets you select a block of 32 addresses from 00-1F (left) to E0-FF (right). 
-* `J6` configures A4. There are 3 options: ignore (left), 0 (middle), or 1 (right). This lets you choose the entire 32 address range selected by J4, the lower half, or the upper half, respectively. 
-* `JP2` configures A3. In the upper position, it must be 1. In the lower position, it is ignored.  
-* `JP1` configures A2 and A1. In the upper position, they must both be 0. In the lower position, they are ignored.
+* `J6` configures A4. There are 3 options: don't care (left), 0 (middle), or 1 (right). This lets you choose the entire 32 address range selected by J4, the lower half, or the upper half, respectively. 
+* `JP2` configures A3. In the upper position, it must be 1. In the lower position, it is don't care.  
+* `JP1` configures A2 and A1. In the upper position, they must both be 0. In the lower position, they are don't care.
 * There is no jumper for A0. When A0 is low (0) the VRAM is addressed, when it is high (1), the VDP control register is addressed.
 
 ### Interrupt Configuration Jumper
