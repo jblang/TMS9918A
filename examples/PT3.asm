@@ -6,7 +6,7 @@
 ;https://github.com/wwarthen/RomWBW/blob/master/Source/Apps/Tune/Tune.asm
 
 ;Release number
-Release 	EQU "1"
+Release		EQU '1'
 
 ;Conditional assembly
 ;1) Version of ROUT (ZX or MSX standards)
@@ -23,11 +23,11 @@ LoopChecker	EQU	1
 Id		EQU	1
 
 PORTS:
-RSEL		DEFB	$68	; Register selection port
-RDAT		DEFB	$60	; Register data port
-Z180		DEFB	$C0	; Z180 base I/O port
-DCSAV		DEFB	0	; for saving original Z180 DCNTL value
-TMP		DEFB	0	; work around use of undocumented Z80
+RSEL:		DEFB	$68	; Register selection port
+RDAT:		DEFB	$60	; Register data port
+Z180:		DEFB	$C0	; Z180 base I/O port
+DCSAV:		DEFB	0	; for saving original Z180 DCNTL value
+TMP:		DEFB	0	; work around use of undocumented Z80
 
 ;Features
 ;--------
@@ -125,12 +125,12 @@ CHP	EQU 29
 ;START+10 setup and status flags
 ;START+11 current position value (byte) (optional)
 
-START
+START:
 	LD HL,MDLADDR
 	JR INIT
 	JP PLAY
 	JR MUTE
-SETUP	DEFB 0 ;set bit0, if you want to play without looping
+SETUP:	DEFB 0 ;set bit0, if you want to play without looping
 	     ;(optional);
 	     ;set bit1 for PT2 and reset for PT3 before
 	     ;calling INIT;
@@ -139,7 +139,7 @@ SETUP	DEFB 0 ;set bit0, if you want to play without looping
 	     ;bit7 is set each time, when loop point is passed
 	     ;(optional)
 IF CurPosCounter
-CurPos	DEFB 0 ;for visualization only (i.e. no need for playing)
+CurPos:	DEFB 0 ;for visualization only (i.e. no need for playing)
 ENDIF
 
 ;Identifier
@@ -148,7 +148,7 @@ ENDIF
 	ENDIF
 
 	IF LoopChecker
-CHECKLP	LD HL,SETUP
+CHECKLP:	LD HL,SETUP
 	SET 7,(HL)
 	BIT 0,(HL)
 	RET Z
@@ -159,14 +159,14 @@ CHECKLP	LD HL,SETUP
 	INC (HL)
 	ENDIF
 
-MUTE	XOR A
+MUTE:	XOR A
 	LD H,A
 	LD L,A
 	LD (AYREGS+AmplA),A
 	LD (AYREGS+AmplB),HL
 	JP ROUT
 
-INIT
+INIT:
 ;HL - AddressOfModule
 	LD A,(START+10)
 	AND 2
@@ -208,15 +208,15 @@ ENDIF
 	JR C,L20
 	CP 10
 	JR C,L21
-L20	LD A,6
-L21	LD (Version),A
+L20:	LD A,6
+L21:	LD (Version),A
 	PUSH AF ;VolTable version
 	CP 4
 	LD A,(IX+99-100) ;TONE TABLE NUMBER
 	RLA
 	AND 7
 	PUSH AF ;NoteTable number
-	LD HL,(e_-SamCnv-2)*256+$18
+	LD HL,$18+256*(e_-SamCnv-2)
 	LD (SamCnv),HL
 	LD A,$BA
 	LD (OrnCP),A
@@ -231,7 +231,8 @@ L21	LD (Version),A
 	LD DE,PT3EMPTYORN
 	JR INITCOMMON
 
-INITPT2	LD A,(HL)
+INITPT2:
+	LD A,(HL)
 	LD (Delay),A
 	PUSH HL
 	PUSH HL
@@ -292,7 +293,7 @@ ENDIF
 	LD HL,$8687
 	LD DE,PT2EMPTYORN
 
-INITCOMMON
+INITCOMMON:
 
 	LD (PTDECOD+1),BC
 	LD (PsCalc),HL
@@ -302,7 +303,7 @@ INITCOMMON
 ;(c) Ivan Roshin
 	LD DE,T_PACK
 	LD BC,T1_+(2*49)-1
-TP_0	LD A,(DE)
+TP_0:	LD A,(DE)
 	INC DE
 	CP 15*2
 	JR NC,TP_1
@@ -311,19 +312,19 @@ TP_0	LD A,(DE)
 	LD L,A
 	INC DE
 	JR TP_2
-TP_1	PUSH DE
+TP_1:	PUSH DE
 	LD D,0
 	LD E,A
 	ADD HL,DE
 	ADD HL,DE
 	POP DE
-TP_2	LD A,H
+TP_2:	LD A,H
 	LD (BC),A
 	DEC BC
 	LD A,L
 	LD (BC),A
 	DEC BC
-	SUB ($F8*2) & $FF
+	SUB $FF&($F8*2)
 	JR NZ,TP_0
 
 IF LoopChecker
@@ -394,7 +395,7 @@ ENDIF
 
 	LD B,12
 	LD IX,TMP		; +WW
-L1	PUSH BC
+L1:	PUSH BC
 	LD C,(HL)
 	INC HL
 	PUSH HL
@@ -406,9 +407,9 @@ L1	PUSH BC
 	;LD IXH,8		; -WW
 	LD (IX),8		; +WW
 
-L2	SRL B
+L2:	SRL B
 	RR C
-L3	DEFB $19	;AND A or NOP
+L3:	DEFB $19	;AND A or NOP
 	LD A,C
 	ADC A,D	;=ADC 0
 	LD (HL),A
@@ -438,7 +439,7 @@ L3	DEFB $19	;AND A or NOP
 	LD A,$FD
 	LD (NT_+$2E),A
 
-CORR_1	LD A,(DE)
+CORR_1:	LD A,(DE)
 	AND A
 	JR Z,TC_EXIT
 	RRA
@@ -450,13 +451,13 @@ CORR_1	LD A,(DE)
 	JR NC,CORR_2
 	DEC (HL)
 	DEC (HL)
-CORR_2	INC (HL)
+CORR_2:	INC (HL)
 	AND A
 	SBC HL,BC
 	INC DE
 	JR CORR_1
 
-TC_EXIT
+TC_EXIT:
 
 	POP AF
 
@@ -473,20 +474,20 @@ TC_EXIT
 	DEC L
 	LD E,L
 	XOR A
-M1      LD (M2),A
+M1:	LD (M2),A
 
 	LD IX,VT_+16
 
 	LD C,$F
-INITV2  PUSH HL
+INITV2:	PUSH HL
 
 	ADD HL,DE
 	EX DE,HL
 	SBC HL,HL
 
 	LD B,$10
-INITV1  LD A,L
-M2      DEFB $7D
+INITV1:	LD A,L
+M2:	DEFB $7D
 	LD A,H
 	ADC A,0
 	LD (IX),A
@@ -499,26 +500,31 @@ M2      DEFB $7D
 	CP $77
 	JR NZ,M3
 	INC E
-M3      DEC C
+M3:	DEC C
 	JR NZ,INITV2
 
 	JP ROUT
 
-SETMDAD	LD (MODADDR),HL
+SETMDAD:
+	LD (MODADDR),HL
 	LD (MDADDR1),HL
 	LD (MDADDR2),HL
 	RET
 
-PTDECOD JP $C3C3
+PTDECOD:
+	JP $C3C3
 
 ;PT2 pattern decoder
-PD2_SAM	CALL SETSAM
+PD2_SAM:
+	CALL SETSAM
 	JR PD2_LOOP
 
-PD2_EOff LD (IX-12+Env_En),A
+PD2_EOff:
+	LD (IX-12+Env_En),A
 	JR PD2_LOOP
 
-PD2_ENV	LD (IX-12+Env_En),16
+PD2_ENV:
+	LD (IX-12+Env_En),16
 	LD (AYREGS+EnvTp),A
 	LD A,(BC)
 	INC BC
@@ -529,24 +535,29 @@ PD2_ENV	LD (IX-12+Env_En),16
 	LD (EnvBase),HL
 	JR PD2_LOOP
 
-PD2_ORN	CALL SETORN
+PD2_ORN:
+	CALL SETORN
 	JR PD2_LOOP
 
-PD2_SKIP INC A
+PD2_SKIP:
+	INC A
 	LD (IX-12+NNtSkp),A
 	JR PD2_LOOP
 
-PD2_VOL	RRCA
+PD2_VOL:
+	RRCA
 	RRCA
 	RRCA
 	RRCA
 	LD (IX-12+Volume),A
 	JR PD2_LOOP
 
-PD2_DEL	CALL C_DELAY
+PD2_DEL:
+	CALL C_DELAY
 	JR PD2_LOOP
 
-PD2_GLIS SET 2,(IX-12+Flags)
+PD2_GLIS:
+	SET 2,(IX-12+Flags)
 	INC A
 	LD (IX-12+TnSlDl),A
 	LD (IX-12+TSlCnt),A
@@ -559,11 +570,13 @@ PD2_GLIS SET 2,(IX-12+Flags)
 	SCF
 	JR PD2_LP2
 
-PT2PD	AND A
+PT2PD:	AND A
 
-PD2_LP2	EX AF,AF'
+PD2_LP2:
+	EX AF,AF'
 
-PD2_LOOP LD A,(BC)
+PD2_LOOP:
+	LD A,(BC)
 	INC BC
 	ADD A,$20
 	JR Z,PD2_REL
@@ -594,7 +607,8 @@ PD2_LOOP LD A,(BC)
 	LD (IX-12+CrNsSl),A
 	JR PD2_LOOP
 
-PD2_PORT RES 2,(IX-12+Flags)
+PD2_PORT:
+	RES 2,(IX-12+Flags)
 	LD A,(BC)
 	INC BC
 	INC BC ;ignoring precalc delta to right sound
@@ -602,13 +616,16 @@ PD2_PORT RES 2,(IX-12+Flags)
 	SCF
 	JR PD2_LP2
 
-PD2_STOP LD (IX-12+TSlCnt),A
+PD2_STOP:
+	LD (IX-12+TSlCnt),A
 	JR PD2_LOOP
 
-PD2_REL	LD (IX-12+Flags),A
+PD2_REL:
+	LD (IX-12+Flags),A
 	JR PD2_EXIT
 
-PD2_NOTE LD L,A
+PD2_NOTE:
+	LD L,A
 	LD A,(IX-12+Note)
 	LD (PrNote+1),A
 	LD (IX-12+Note),L
@@ -627,63 +644,72 @@ PD2_NOTE LD L,A
 	LD L,A
 	INC A
 	CALL SETPORT
-NOPORT2	LD (IX-12+TSlCnt),1
-NOGLIS2	XOR A
+NOPORT2:
+	LD (IX-12+TSlCnt),1
+NOGLIS2:
+	XOR A
 
 
-PD2_EXIT LD (IX-12+PsInSm),A
+PD2_EXIT:
+	LD (IX-12+PsInSm),A
 	LD (IX-12+PsInOr),A
 	LD (IX-12+CrTnSl),A
 	LD (IX-12+CrTnSl+1),A
 	JP PD_FIN
 
 ;PT3 pattern decoder
-PD_OrSm	LD (IX-12+Env_En),0
+PD_OrSm:
+	LD (IX-12+Env_En),0
 	CALL SETORN
-PD_SAM_	LD A,(BC)
+PD_SAM_:
+	LD A,(BC)
 	INC BC
 	RRCA
 
-PD_SAM	CALL SETSAM
+PD_SAM:	CALL SETSAM
 	JR PD_LOOP
 
-PD_VOL	RRCA
+PD_VOL:	RRCA
 	RRCA
 	RRCA
 	RRCA
 	LD (IX-12+Volume),A
 	JR PD_LP2
 	
-PD_EOff	LD (IX-12+Env_En),A
+PD_EOff:
+	LD (IX-12+Env_En),A
 	LD (IX-12+PsInOr),A
 	JR PD_LP2
 
-PD_SorE	DEC A
+PD_SorE:
+	DEC A
 	JR NZ,PD_ENV
 	LD A,(BC)
 	INC BC
 	LD (IX-12+NNtSkp),A
 	JR PD_LP2
 
-PD_ENV	CALL SETENV
+PD_ENV:	CALL SETENV
 	JR PD_LP2
 
-PD_ORN	CALL SETORN
+PD_ORN:	CALL SETORN
 	JR PD_LOOP
 
-PD_ESAM	LD (IX-12+Env_En),A
+PD_ESAM:
+	LD (IX-12+Env_En),A
 	LD (IX-12+PsInOr),A
 	CALL NZ,SETENV
 	JR PD_SAM_
 
-PT3PD	LD A,(IX-12+Note)
+PT3PD:	LD A,(IX-12+Note)
 	LD (PrNote+1),A
 	LD L,(IX-12+CrTnSl)
 	LD H,(IX-12+CrTnSl+1)
 	LD (PrSlide+1),HL
 
-PD_LOOP	LD DE,$2010
-PD_LP2	LD A,(BC)
+PD_LOOP:
+	LD DE,$2010
+PD_LP2:	LD A,(BC)
 	INC BC
 	ADD A,E
 	JR C,PD_OrSm
@@ -714,17 +740,19 @@ PD_LP2	LD A,(BC)
 	PUSH DE
 	JR PD_LOOP
 
-PD_NOIS	LD (Ns_Base),A
+PD_NOIS:
+	LD (Ns_Base),A
 	JR PD_LP2
 
-PD_REL	RES 0,(IX-12+Flags)
+PD_REL:	RES 0,(IX-12+Flags)
 	JR PD_RES
 
-PD_NOTE	LD (IX-12+Note),A
+PD_NOTE:
+	LD (IX-12+Note),A
 	SET 0,(IX-12+Flags)
 	XOR A
 
-PD_RES	LD (PDSP_+1),SP
+PD_RES:	LD (PDSP_+1),SP
 	LD SP,IX
 	LD H,A
 	LD L,A
@@ -734,13 +762,14 @@ PD_RES	LD (PDSP_+1),SP
 	PUSH HL
 	PUSH HL
 	PUSH HL
-PDSP_	LD SP,$3131
+PDSP_:	LD SP,$3131
 
-PD_FIN	LD A,(IX-12+NNtSkp)
+PD_FIN:	LD A,(IX-12+NNtSkp)
 	LD (IX-12+NtSkCn),A
 	RET
 
-C_PORTM LD A,(BC)
+C_PORTM:
+	LD A,(BC)
 	INC BC
 ;SKIP PRECALCULATED TONE DELTA (BECAUSE
 ;CANNOT BE RIGHT AFTER PT3 COMPILATION)
@@ -760,7 +789,8 @@ C_PORTM LD A,(BC)
 ;Set portamento variables
 ;A - Delay; A' - Hi(Step); ZF' - (A'=0); HL - CrTnSl
 
-SETPORT	RES 2,(IX-12+Flags)
+SETPORT:
+	RES 2,(IX-12+Flags)
 	LD (IX-12+TnSlDl),A
 	LD (IX-12+TSlCnt),A
 	PUSH HL
@@ -776,7 +806,7 @@ SETPORT	RES 2,(IX-12+Flags)
 	LD H,(HL)
 	LD L,A
 	PUSH HL
-PrNote	LD A,$3E
+PrNote:	LD A,$3E
 	LD (IX-12+Note),A
 	ADD A,A
 	LD L,A
@@ -794,27 +824,31 @@ Version EQU $+1
 	LD A,$3E
 	CP 6
 	JR C,OLDPRTM ;Old 3xxx for PT v3.5-
-PrSlide	LD DE,$1111
+PrSlide:
+	LD DE,$1111
 	LD (IX-12+CrTnSl),E
 	LD (IX-12+CrTnSl+1),D
 LoStep	EQU $+1
-OLDPRTM	LD A,$3E
+OLDPRTM:
+	LD A,$3E
 	EX AF,AF'
 	JR Z,NOSIG
 	EX DE,HL
-NOSIG	SBC HL,DE
+NOSIG:	SBC HL,DE
 	JP P,SET_STP
 	CPL
 	EX AF,AF'
 	NEG
 	EX AF,AF'
-SET_STP	LD (IX-12+TSlStp+1),A
+SET_STP:
+	LD (IX-12+TSlStp+1),A
 	EX AF,AF'
 	LD (IX-12+TSlStp),A
 	LD (IX-12+COnOff),0
 	RET
 
-C_GLISS	SET 2,(IX-12+Flags)
+C_GLISS:
+	SET 2,(IX-12+Flags)
 	LD A,(BC)
 	INC BC
 	LD (IX-12+TnSlDl),A
@@ -824,7 +858,7 @@ C_GLISS	SET 2,(IX-12+Flags)
 	CP 7
 	SBC A,A
 	INC A
-GL36	LD (IX-12+TSlCnt),A
+GL36:	LD (IX-12+TSlCnt),A
 	LD A,(BC)
 	INC BC
 	EX AF,AF'
@@ -832,17 +866,20 @@ GL36	LD (IX-12+TSlCnt),A
 	INC BC
 	JR SET_STP
 
-C_SMPOS	LD A,(BC)
+C_SMPOS:
+	LD A,(BC)
 	INC BC
 	LD (IX-12+PsInSm),A
 	RET
 
-C_ORPOS	LD A,(BC)
+C_ORPOS:
+	LD A,(BC)
 	INC BC
 	LD (IX-12+PsInOr),A
 	RET
 
-C_VIBRT	LD A,(BC)
+C_VIBRT:
+	LD A,(BC)
 	INC BC
 	LD (IX-12+OnOffD),A
 	LD (IX-12+COnOff),A
@@ -855,7 +892,8 @@ C_VIBRT	LD A,(BC)
 	LD (IX-12+CrTnSl+1),A
 	RET
 
-C_ENGLS	LD A,(BC)
+C_ENGLS:
+	LD A,(BC)
 	INC BC
 	LD (Env_Del),A
 	LD (CurEDel),A
@@ -868,12 +906,12 @@ C_ENGLS	LD A,(BC)
 	LD (ESldAdd),HL
 	RET
 
-C_DELAY	LD A,(BC)
+C_DELAY:	LD A,(BC)
 	INC BC
 	LD (Delay),A
 	RET
 	
-SETENV	LD (IX-12+Env_En),E
+SETENV:	LD (IX-12+Env_En),E
 	LD (AYREGS+EnvTp),A
 	LD A,(BC)
 	INC BC
@@ -888,9 +926,9 @@ SETENV	LD (IX-12+Env_En),E
 	LD H,A
 	LD L,A
 	LD (CurESld),HL
-C_NOP	RET
+C_NOP:	RET
 
-SETORN	ADD A,A
+SETORN:	ADD A,A
 	LD E,A
 	LD D,0
 	LD (IX-12+PsInOr),D
@@ -907,7 +945,7 @@ MDADDR2 EQU $+1
 	LD (IX-12+OrnPtr+1),H
 	RET
 
-SETSAM	ADD A,A
+SETSAM:	ADD A,A
 	LD E,A
 	LD D,0
 SamPtrs EQU $+1
@@ -924,7 +962,8 @@ MDADDR1	EQU $+1
 	RET
 
 ;ALL 16 ADDRESSES TO PROTECT FROM BROKEN PT3 MODULES
-SPCCOMS DEFW C_NOP
+SPCCOMS:
+	DEFW C_NOP
 	DEFW C_GLISS
 	DEFW C_PORTM
 	DEFW C_SMPOS
@@ -941,7 +980,7 @@ SPCCOMS DEFW C_NOP
 	DEFW C_NOP
 	DEFW C_NOP
 
-CHREGS	XOR A
+CHREGS:	XOR A
 	LD (Ampl),A
 	BIT 0,(IX+Flags)
 	PUSH HL
@@ -957,18 +996,19 @@ CHREGS	XOR A
 	ADD HL,SP
 	INC A
 		;PT2	PT3
-OrnCP	INC A	;CP E	CP D
+OrnCP:	INC A	;CP E	CP D
 	JR C,CH_ORPS
-OrnLD	DEFB 1	;LD A,D	LD A,E
-CH_ORPS	LD (IX+PsInOr),A
+OrnLD:	DEFB 1	;LD A,D	LD A,E
+CH_ORPS:
+	LD (IX+PsInOr),A
 	LD A,(IX+Note)
 	ADD A,(HL)
 	JP P,CH_NTP
 	XOR A
-CH_NTP	CP 96
+CH_NTP:	CP 96
 	JR C,CH_NOK
 	LD A,95
-CH_NOK	ADD A,A
+CH_NOK:	ADD A,A
 	EX AF,AF'
 	LD L,(IX+SamPtr)
 	LD H,(IX+SamPtr+1)
@@ -978,23 +1018,23 @@ CH_NOK	ADD A,A
 	LD A,(IX+PsInSm)
 	LD B,A
 	ADD A,A
-SamClc2	ADD A,A ;or ADD A,B for PT2
+SamClc2:	ADD A,A ;or ADD A,B for PT2
 	LD L,A
 	ADD HL,SP
 	LD SP,HL
 	LD A,B
 	INC A
 		;PT2	PT3
-SamCP	INC A	;CP E	CP D
+SamCP:	INC A	;CP E	CP D
 	JR C,CH_SMPS
-SamLD	DEFB 1	;LD A,D	LD A,E
-CH_SMPS	LD (IX+PsInSm),A
+SamLD:	DEFB 1	;LD A,D	LD A,E
+CH_SMPS:	LD (IX+PsInSm),A
 	POP BC
 	POP HL
 
 ;Convert PT2 sample to PT3
 		;PT2		PT3
-SamCnv	POP HL  ;BIT 2,C	JR e_
+SamCnv:	POP HL  ;BIT 2,C	JR e_
 	POP HL	
 	LD H,B
 	JR NZ,$+8
@@ -1019,14 +1059,15 @@ SamCnv	POP HL  ;BIT 2,C	JR e_
 	AND $9F
 	LD B,A
 
-e_	LD E,(IX+TnAcc)
+e_:	LD E,(IX+TnAcc)
 	LD D,(IX+TnAcc+1)
 	ADD HL,DE
 	BIT 6,B
 	JR Z,CH_NOAC
 	LD (IX+TnAcc),L
 	LD (IX+TnAcc+1),H
-CH_NOAC EX DE,HL
+CH_NOAC:
+	EX DE,HL
 	EX AF,AF'
 	ADD A,NT_ & $FF
 	LD L,A
@@ -1039,7 +1080,7 @@ CH_NOAC EX DE,HL
 	LD E,(IX+CrTnSl)
 	LD D,(IX+CrTnSl+1)
 	ADD HL,DE
-CSP_	LD SP,$3131
+CSP_:	LD SP,$3131
 	EX (SP),HL
 	XOR A
 	OR (IX+TSlCnt)
@@ -1061,7 +1102,8 @@ CSP_	LD SP,$3131
 	AND A
 	JR Z,CH_STPP
 	EX DE,HL
-CH_STPP SBC HL,DE
+CH_STPP:
+	SBC HL,DE
 	JP M,CH_AMP
 	LD A,(IX+SlToNt)
 	LD (IX+Note),A
@@ -1069,7 +1111,7 @@ CH_STPP SBC HL,DE
 	LD (IX+TSlCnt),A
 	LD (IX+CrTnSl),A
 	LD (IX+CrTnSl+1),A
-CH_AMP	LD A,(IX+CrAmSl)
+CH_AMP:	LD A,(IX+CrAmSl)
 	BIT 7,C
 	JR Z,CH_NOAM
 	BIT 6,C
@@ -1078,30 +1120,34 @@ CH_AMP	LD A,(IX+CrAmSl)
 	JR Z,CH_NOAM
 	INC A
 	JR CH_SVAM
-CH_AMIN	CP -15
+CH_AMIN:	CP -15
 	JR Z,CH_NOAM
 	DEC A
-CH_SVAM	LD (IX+CrAmSl),A
-CH_NOAM	LD L,A
+CH_SVAM:
+	LD (IX+CrAmSl),A
+CH_NOAM:
+	LD L,A
 	LD A,B
 	AND 15
 	ADD A,L
 	JP P,CH_APOS
 	XOR A
-CH_APOS	CP 16
+CH_APOS:
+	CP 16
 	JR C,CH_VOL
 	LD A,15
-CH_VOL	OR (IX+Volume)
+CH_VOL:	OR (IX+Volume)
 	ADD A,VT_ & $FF
 	LD L,A
 	ADC A,VT_/256
 	SUB L
 	LD H,A
 	LD A,(HL)
-CH_ENV	BIT 0,C
+CH_ENV:	BIT 0,C
 	JR NZ,CH_NOEN
 	OR (IX+Env_En)
-CH_NOEN	LD (Ampl),A
+CH_NOEN:
+	LD (Ampl),A
 	BIT 7,B
 	LD A,C
 	JR Z,NO_ENSL
@@ -1114,20 +1160,23 @@ CH_NOEN	LD (Ampl),A
 	BIT 5,B
 	JR Z,NO_ENAC
 	LD (IX+CrEnSl),A
-NO_ENAC	LD HL,AddToEn
+NO_ENAC:
+	LD HL,AddToEn
 	ADD A,(HL) ;BUG IN PT3 - NEED WORD HERE
 	LD (HL),A
 	JR CH_MIX
-NO_ENSL RRA
+NO_ENSL:
+	RRA
 	ADD A,(IX+CrNsSl)
 	LD (AddToNs),A
 	BIT 5,B
 	JR Z,CH_MIX
 	LD (IX+CrNsSl),A
-CH_MIX	LD A,B
+CH_MIX:	LD A,B
 	RRA
 	AND $48
-CH_EXIT	LD HL,AYREGS+Mixer
+CH_EXIT:
+	LD HL,AYREGS+Mixer
 	OR (HL)
 	RRCA
 	LD (HL),A
@@ -1143,10 +1192,11 @@ CH_EXIT	LD HL,AYREGS+Mixer
 	LD A,(IX+OnOffD)
 	JR C,CH_ONDL
 	LD A,(IX+OffOnD)
-CH_ONDL	LD (IX+COnOff),A
+CH_ONDL:
+	LD (IX+COnOff),A
 	RET
 
-PLAY    XOR A
+PLAY:	XOR A
 	LD (AddToEn),A
 	LD (AYREGS+Mixer),A
 	DEC A
@@ -1157,14 +1207,14 @@ PLAY    XOR A
 	LD HL,ChanA+NtSkCn
 	DEC (HL)
 	JR NZ,PL1B
-AdInPtA EQU $+1
+AdInPtA	EQU $+1
 	LD BC,$0101
 	LD A,(BC)
 	AND A
 	JR NZ,PL1A
 	LD D,A
 	LD (Ns_Base),A
-CrPsPtr EQU $+1
+CrPsPtr	EQU $+1
 	LD HL,$2121
 	INC HL
 	LD A,(HL)
@@ -1175,14 +1225,14 @@ IF LoopChecker
 	CALL CHECKLP
 ENDIF
 
-LPosPtr EQU $+1
+LPosPtr	EQU $+1
 	LD HL,$2121
 	LD A,(HL)
 	INC A
-PLNLP	LD (CrPsPtr),HL
+PLNLP:	LD (CrPsPtr),HL
 	DEC A
 		;PT2		PT3
-PsCalc	DEC A	;ADD A,A	NOP
+PsCalc:	DEC A	;ADD A,A	NOP
 	DEC A	;ADD A,(HL)	NOP
 	ADD A,A
 	LD E,A
@@ -1190,11 +1240,11 @@ PsCalc	DEC A	;ADD A,A	NOP
 
 IF CurPosCounter
 	LD A,L
-PosSub	SUB $D6
+PosSub:	SUB $D6
 	LD (CurPos),A
 ENDIF
 
-PatsPtr EQU $+1
+PatsPtr	EQU $+1
 	LD HL,$2121
 	ADD HL,DE
 MODADDR	EQU $+1
@@ -1211,12 +1261,12 @@ MODADDR	EQU $+1
 	POP HL
 	ADD HL,DE
 	LD (AdInPtC),HL
-PSP_	LD SP,$3131
-PL1A	LD IX,ChanA+12
+PSP_:	LD SP,$3131
+PL1A:	LD IX,ChanA+12
 	CALL PTDECOD
 	LD (AdInPtA),BC
 
-PL1B	LD HL,ChanB+NtSkCn
+PL1B:	LD HL,ChanB+NtSkCn
 	DEC (HL)
 	JR NZ,PL1C
 	LD IX,ChanB+12
@@ -1225,7 +1275,7 @@ AdInPtB	EQU $+1
 	CALL PTDECOD
 	LD (AdInPtB),BC
 
-PL1C	LD HL,ChanC+NtSkCn
+PL1C:	LD HL,ChanC+NtSkCn
 	DEC (HL)
 	JR NZ,PL1D
 	LD IX,ChanC+12
@@ -1235,10 +1285,10 @@ AdInPtC	EQU $+1
 	LD (AdInPtC),BC
 
 Delay	EQU $+1
-PL1D	LD A,$3E
+PL1D:	LD A,$3E
 	LD (DelyCnt),A
 
-PL2	LD IX,ChanA
+PL2:	LD IX,ChanA
 	LD HL,(AYREGS+TonA)
 	CALL CHREGS
 	LD (AYREGS+TonA),HL
@@ -1286,7 +1336,7 @@ ESldAdd	EQU $+1
 	ADD HL,DE
 	LD (CurESld),HL
 
-ROUT
+ROUT:
 IF ACBBAC
 	LD A,(SETUP)
 	AND 12
@@ -1330,13 +1380,13 @@ IF ACBBAC
 	AND (HL)
 	LD E,A
 	LD A,(HL)
-RxCA1	LD A,(HL)
+RxCA1:	LD A,(HL)
 	AND %010010
 	OR E
 	LD E,A
 	LD A,(HL)
 	AND %010010
-RxCA2	OR E
+RxCA2:	OR E
 	OR E
 	LD (HL),A
 ABC
@@ -1347,7 +1397,7 @@ IF ZX
 	LD DE,$FFBF
 	LD BC,$FFFD
 	LD HL,AYREGS
-LOUT	OUT (C),A
+LOUT:	OUT (C),A
 	LD B,E
 	OUTI 
 	LD B,D
@@ -1368,7 +1418,7 @@ IF MSX
 	XOR A
 	LD C,$A0
 	LD HL,AYREGS
-LOUT	OUT (C),A
+LOUT:	OUT (C),A
 	INC C
 	OUTI 
 	DEC C
@@ -1391,7 +1441,7 @@ IF WBW
 	XOR A		; start with reg 0
 	LD C,E		; point to address port
 	LD HL,AYREGS	; start of value list
-LOUT	OUT (C),A	; select register
+LOUT:	OUT (C),A	; select register
 	LD C,D		; point to data port
 	OUTI		; write (HL) to data port, bump HL
 	LD C,E		; point to address port
@@ -1404,7 +1454,7 @@ LOUT	OUT (C),A	; select register
 	JP M,LOUT2	; if bit 7 set, return w/o writing value
 	LD C,D		; select data port
 	OUT (C),A	; write value to register 13
-LOUT2
+LOUT2:
 	CALL NORMIO
 	EI
 	RET		; And done
@@ -1439,7 +1489,8 @@ CHTABLE	EQU $-4
 	DEFB 4,5,15,%001001,0,7,7,%100100
 ENDIF
 
-NT_DATA	DEFB (T_NEW_0-T1_)*2
+NT_DATA:
+	DEFB (T_NEW_0-T1_)*2
 	DEFB TCNEW_0-T_
 	DEFB (T_OLD_0-T1_)*2+1
 	DEFB TCOLD_0-T_
@@ -1456,19 +1507,26 @@ NT_DATA	DEFB (T_NEW_0-T1_)*2
 	DEFB (T_OLD_3-T1_)*2
 	DEFB TCOLD_3-T_
 
-T_
+T_:
 
-TCOLD_0	DEFB $00+1,$04+1,$08+1,$0A+1,$0C+1,$0E+1,$12+1,$14+1
+TCOLD_0:
+	DEFB $00+1,$04+1,$08+1,$0A+1,$0C+1,$0E+1,$12+1,$14+1
 	DEFB $18+1,$24+1,$3C+1,0
-TCOLD_1	DEFB $5C+1,0
-TCOLD_2	DEFB $30+1,$36+1,$4C+1,$52+1,$5E+1,$70+1,$82,$8C,$9C
+TCOLD_1:
+	DEFB $5C+1,0
+TCOLD_2:
+	DEFB $30+1,$36+1,$4C+1,$52+1,$5E+1,$70+1,$82,$8C,$9C
 	DEFB $9E,$A0,$A6,$A8,$AA,$AC,$AE,$AE,0
-TCNEW_3	DEFB $56+1
-TCOLD_3	DEFB $1E+1,$22+1,$24+1,$28+1,$2C+1,$2E+1,$32+1,$BE+1,0
-TCNEW_0	DEFB $1C+1,$20+1,$22+1,$26+1,$2A+1,$2C+1,$30+1,$54+1
+TCNEW_3:
+	DEFB $56+1
+TCOLD_3:
+	DEFB $1E+1,$22+1,$24+1,$28+1,$2C+1,$2E+1,$32+1,$BE+1,0
+TCNEW_0:
+	DEFB $1C+1,$20+1,$22+1,$26+1,$2A+1,$2C+1,$30+1,$54+1
 	DEFB $BC+1,$BE+1,0
 TCNEW_1 EQU TCOLD_1
-TCNEW_2	DEFB $1A+1,$20+1,$24+1,$28+1,$2A+1,$3A+1,$4C+1,$5E+1
+TCNEW_2:
+	DEFB $1A+1,$20+1,$24+1,$28+1,$2A+1,$3A+1,$4C+1,$5E+1
 	DEFB $BA+1,$BC+1,$BE+1,0
 
 PT3EMPTYORN EQU $-1
@@ -1476,7 +1534,7 @@ PT3EMPTYORN EQU $-1
 
 ;first 12 values of tone tables (packed)
 
-T_PACK	DEFB $06EC*2/256,($06EC*2)&$FF
+T_PACK:	DEFB $06EC*2/256,($06EC*2)&$FF
 	DEFB $0755-$06EC
 	DEFB $07C5-$0755
 	DEFB $083B-$07C5
@@ -1529,27 +1587,27 @@ T_PACK	DEFB $06EC*2/256,($06EC*2)&$FF
 ;vars from here can be stripped
 ;you can move VARS to any other address
 
-VARS
+VARS:
 
-ChanA	DEFS	CHP
-ChanB	DEFS	CHP
-ChanC	DEFS	CHP
+ChanA:	DEFS	CHP
+ChanB:	DEFS	CHP
+ChanC:	DEFS	CHP
 
 ;GlobalVars
-DelyCnt	DEFS	1
-CurESld	DEFS	2
-CurEDel	DEFS	1
-Ns_Base_AddToNs
-Ns_Base	DEFS	1
-AddToNs	DEFS	1
+DelyCnt:	DEFS	1
+CurESld:	DEFS	2
+CurEDel:	DEFS	1
+Ns_Base_AddToNs:
+Ns_Base:	DEFS	1
+AddToNs:	DEFS	1
 
-AYREGS
+AYREGS:
 
-VT_	DEFS	256	;CreatedVolumeTableAddress
+VT_:	DEFS	256	;CreatedVolumeTableAddress
 
-EnvBase	EQU	VT_+14
+EnvBase		EQU	VT_+14
 
-T1_	EQU	VT_+16	;Tone tables data depacked here
+T1_		EQU	VT_+16	;Tone tables data depacked here
 
 T_OLD_1	EQU	T1_
 T_OLD_2	EQU	T_OLD_1+24
@@ -1562,7 +1620,7 @@ T_NEW_3	EQU	T_OLD_3
 
 PT2EMPTYORN	EQU VT_+31	;1,0,0 sequence
 
-NT_	DEFS	192	;CreatedNoteTableAddress
+NT_:	DEFS	192	;CreatedNoteTableAddress
 
 ;local var
 Ampl	EQU	AYREGS+AmplC
