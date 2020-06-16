@@ -16,28 +16,28 @@ SpriteCount:    equ 8                           ; number of frames in animation
 NoZ180: call    TmsSetWait                      ; set VDP wait loop based on clock multiple
 
         call    TmsProbe                        ; find what port TMS9918A listens on
-        jp      z, NoTms
+        jp      z, NoTms                        ; abort if not found
 
-        call    TmsBitmap
+        call    TmsBitmap                       ; initialize screen
 
         ld      a, TmsSprite32
         call    TmsSpriteConfig
 
-        ld      bc, SpritePatternLen            ; set up SpritePatterns patterns
+        ld      bc, SpritePatternLen            ; set up sprite patterns
         ld      de, (TmsSpritePatternAddr)
         ld      hl, SpritePatterns
         call    TmsWrite
 
 FirstSprite:        
-        xor     a                               ; reset to first SpritePatterns name
+        xor     a                               ; reset to first sprite frame
 NextSprite:
-        ld      (CurrSprite), a                 ; save current SpritePatterns name in memory
+        ld      (CurrSprite), a                 ; save current sprite frame in memory
 SameSprite:
-        call    keypress                        ; Exit on keypress
+        call    keypress                        ; exit on keypress
         jp      nz, Exit
 
-        call    TmsRegIn                        ; check for vsync flag
-        jp      p, SameSprite                   ; only update when it's set
+        call    TmsRegIn                        ; only update during vsync
+        jp      p, SameSprite
 
         ld      hl, XDelta                      ; move x position
         ld      a, (Sprite1X)
@@ -58,7 +58,7 @@ SameSprite:
         or      a
         call    z, ChangeDirection
 
-        ld      bc, 8                           ; update SpritePatterns attribute table
+        ld      bc, 8                           ; update sprite attribute table
         ld      de, (TmsSpriteAttrAddr)
         ld      hl, Sprite1Y
         call    TmsWrite
@@ -66,17 +66,17 @@ SameSprite:
         ld      hl, VsyncCount                  ; count down the vsyncs
         dec     (hl)
         jp      nz, SameSprite                  ; draw the same image until it reaches 0
-        ld      a, VsyncDiv                     ; reload vsync counter when
+        ld      a, VsyncDiv                     ; reload vsync counter with divisor
         ld      (hl), a
 
-        ld      a, (CurrSprite)                 ; change name pointers for sprites
-        ld      (Sprite1Name), a                ; set name for first SpritePatterns
-        add     a, 4                            ; add 4
-        ld      (Sprite2Name), a                ; set name for second SpritePatterns
+        ld      a, (CurrSprite)                 ; change sprite pointers
+        ld      (Sprite1Name), a
         add     a, 4
-        cp      SpriteCount*8                   ; have we displayed all frames yet?
-        jp      nz, NextSprite                  ; if not, display the next frame
-        jp      FirstSprite                     ; if so, start over with the first
+        ld      (Sprite2Name), a
+        add     a, 4
+        cp      SpriteCount*8                   ; reset to first sprite after last one
+        jp      nz, NextSprite
+        jp      FirstSprite
 
 Exit:
         ld      sp, (OldSP)
@@ -105,7 +105,7 @@ NoTms:  ld      de, NoTmsMessage
 VsyncCount:
         defb    VsyncDiv                        ; vsync down counter
 CurrSprite:
-        defb    0                               ; name of the current SpritePatterns pattern
+        defb    0                               ; current sprite frame
 XDelta:
         defb    1                               ; direction horizontal motion
 YDelta:

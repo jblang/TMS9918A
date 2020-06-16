@@ -4,8 +4,8 @@
 ; Nyan Cat theme by Karbofos: https://zxart.ee/eng/authors/k/karbofos/tognyanftro/qid:136394/
 ; PTx Player by S.V.Bulba <vorobey@mail.khstu.ru>
 
-UseAY:        equ 1                   ; whether to play music on the AY-3 card
-VsyncDiv:     equ 3                   ; number of vsyncs per Animation frame
+UseAY:          equ 1                   ; whether to play music on the AY-3 card
+VsyncDiv:       equ 3                   ; number of vsyncs per Animation frame
 
         org     100h
 
@@ -19,10 +19,10 @@ VsyncDiv:     equ 3                   ; number of vsyncs per Animation frame
 NoZ180: call    TmsSetWait              ; set VDP wait loop based on clock multiple
 
         call    TmsProbe                ; find what port TMS9918A listens on
-        jp      z, NoTms
+        jp      z, NoTms                ; abort if not found
 
-        call    TmsMulticolor           ; initialize tms for multicolor mode
-        ld      a, TmsDarkBlue          ; set background color
+        call    TmsMulticolor           ; initialize screen and set background color
+        ld      a, TmsDarkBlue
         call    TmsBackground
 
 if UseAY
@@ -32,37 +32,35 @@ if UseAY
 endif
 
 FirstFrame:
-        ld      hl, Animation           ; set up the first frame
+        ld      hl, Animation           ; get address of first frame
 NextFrame:
-        ld      (CurrFrame), hl         ; save next Animation frame address
+        ld      (CurrFrame), hl         ; save address of next animation frame
 SkipDraw:
-        call    keypress                ; Exit on keypress
+        call    keypress                ; exit on keypress
         jp      nz, Exit
 
 if UseAY
-        call    Timer                   ; get 50hz counter
-        ld      hl, LastTimer                ; compare to LastTimer value
+        call    Timer                   ; see if 50hz timer has changed
+        ld      hl, LastTimer
         cp      (hl)
         ld      (hl), a                 ; save current value for next time
-        call    nz, PLAY                ; if it changed, play one quark of the song
+        call    nz, PLAY                ; if changed, play one quark of the song
 endif
 
-        call    TmsRegIn                ; check for vsync
-        jp      p, SkipDraw             ; don't draw until it's set
-
-        ld      hl, VsyncCount          ; decrement the vsync counter
+        call    TmsRegIn                ; only draw when vsyncs counter reaches 0
+        jp      p, SkipDraw
+        ld      hl, VsyncCount
         dec     (hl)
-        jp      nz, SkipDraw            ; don't draw until it's zero
-
-        ld      a, VsyncDiv             ; reset vsync counter
+        jp      nz, SkipDraw
+        ld      a, VsyncDiv             ; reset vsync counter from divisor
         ld      (hl), a
         
-        ld      hl, (CurrFrame)         ; get address of current frame
-        ld      de, (TmsPatternAddr)    ; pattern table address in vram
-        ld      bc, TmsMulticolorPatternLen ; length of one frame
-        call    TmsWrite                ; copy frame to vram, leaves hl pointing to next frame
+        ld      hl, (CurrFrame)         ; copy current frame to pattern table
+        ld      de, (TmsPatternAddr)
+        ld      bc, TmsMulticolorPatternLen
+        call    TmsWrite                ; leaves hl pointing to next frame
 
-        ld      de, EndAnimation        ; check if hl is past the LastTimer frame
+        ld      de, EndAnimation        ; check if hl is past the last frame
         or      a
         sbc     hl, de
         add     hl, de
@@ -115,7 +113,7 @@ EndAnimation:
 VsyncCount:
         defb    VsyncDiv                ; vsync down counter
 CurrFrame:
-        defw    0                       ; current frame of Animation
+        defw    0                       ; pointer to current animation frame
 OldSP:  defw    0                
         defs    40h
 Stack:

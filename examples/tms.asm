@@ -152,17 +152,17 @@ TmsProbeNext:
         ld      (TmsPort), a
         call    TmsRegIn                ; clear vsync bit
         call    TmsRegIn                ; check it again
-        jp      m, TmsProbeFailed       ; if still set, we're not talking to a TMS9918A
-        ld      de, 0ffffh              ; loop long enough for another vsync to occur
+        jp      m, TmsProbeFailed       ; if still set, not a TMS9918A
+        ld      de, 0ffffh              ; long enough for another vsync
 TmsProbeWait:
         call    TmsRegIn                ; check vsync bit again
-        ret     m                       ; if it's set, we found the VDP (and Z is clear)
-        dec     de                      ; otherwise, keep trying
+        ret     m                       ; if set, it's a TMS9918A (and Z is clear)
+        dec     de                      ; otherwise, keep waiting
         ld      a, e
         or      d
         jp      nz, TmsProbeWait
 TmsProbeFailed:
-        inc     hl                      ; still clear after a long time, try next port
+        inc     hl                      ; if still clear after this long, try next port
         djnz    TmsProbeNext
         xor     a                       ; set Z if we ran out of ports to check
         ret
@@ -171,7 +171,7 @@ TmsPorts:                               ; List of ports to probe:
         defb 0beh                       ; ColecoVision / SG-1000
         defb 98h                        ; MSX
         defb 10h                        ; Sord M5 (conflicts with z80ctrl SIO port)
-        ;defb 8                         ; Tatung Einstein (conflicts with z80ctrl drive ports)
+        defb 8                          ; Tatung Einstein (conflicts with z80ctrl drive ports)
         ;defb 1                         ; MTX (not supported by TMS9918A video card)
         ; add additional ports to check here
 TmsNumPorts:    equ $ - TmsPorts
@@ -249,7 +249,7 @@ TmsBackground:
 ; set the sprite configuration
 ;       A = sprite options
 TmsSpriteConfig:
-        and     (TmsSprite32|TmsSpriteMag)
+        and     TmsSprite32|TmsSpriteMag
         ld      b, a
         ld      a, (TmsMode)
         and     ~(TmsSprite32|TmsSpriteMag)
@@ -306,26 +306,25 @@ TmsReset:
 
 ; initialize for multicolor mode 
 TmsMulticolor:
-        call    TmsReset                ; blank the screen and clear vram
-        ld      de, (TmsNameAddr)       ; set name table start address
+        call    TmsReset
+        ld      de, (TmsNameAddr)
         call    TmsWriteAddr
-        ld      d, 6                    ; nametable has 6 different sections
-        ld      e, 0                    ; first section starts at 0
+        ld      d, 6                    ; name table has 6 sections
+        ld      e, 0                    ; lines in first section start at 0
 TmsSectionLoop:
         ld      c, 4                    ; each section has 4 identical lines
 TmsLineLoop:
         ld      b, 32                   ; each line is 32 bytes long
-        ld      a, e                    ; load starting value for line
+        ld      a, e                    ; same starting value for each line in section
 TmsByteLoop: 
-        call    TmsRamOut               ; write byte to name table
-        inc     a                       ; increment value for next byte
-        djnz    TmsByteLoop             ; next byte in line
-        dec     c                       ; decrement line counter
-        jp      nz, TmsLineLoop         ; next line in section
-        ld      e, a                    ; a=e+32 now, use as starting value for next section
-        dec     d                       ; decrement section counter
-        jp      nz, TmsSectionLoop      ; next section
-        ld      hl, TmsM2               ; switch to multicolor mode
+        call    TmsRamOut
+        inc     a                       ; byte value
+        djnz    TmsByteLoop
+        dec     c                       ; line counter
+        jp      nz, TmsLineLoop
+        ld      e, a                    ; next starting value = current + 32
+        dec     d                       ; section counter
+        jp      nz, TmsSectionLoop
         ld      hl, TmsMulticolorFlags
         ld      (TmsMode), hl
         jp      TmsInitNonBitmap
@@ -343,7 +342,7 @@ TmsTextMode:
         push    hl
         call    TmsReset
         pop     hl
-        ld      de, (TmsPatternAddr)
+        ld      de, (TmsPatternAddr)    ; load font from address in hl
         ld      bc, TmsTextPatternLen
         call    TmsWrite
         ld      hl, TmsTextFlags
@@ -352,26 +351,28 @@ TmsTextMode:
 
 ; non-bitmap color and pattern table configuration
 TmsInitNonBitmap:
-        ld      a, (TmsColorAddr)       ; set up color table address
-        and     0c0h                    ; mask off unused address bits
+        ; set up color table address (register = address / 400H)
+        ld      a, (TmsColorAddr)
+        and     0c0h
         ld      (TmsColorAddr), a
         ld      d, a
         ld      a, (TmsColorAddr+1)
         and     3fh
         ld      (TmsColorAddr+1), a
-        rl      d                       ; register value is address / 40H
+        rl      d
         rla
         rl      d
         rla
         ld      e, TmsColorTableReg
         call    TmsSetReg
 
-        xor     a                       ; set up pattern table address
-        ld      (TmsPatternAddr), a     ; mask off unused address bits
+        ; set up pattern table address (register = address / 800H)
+        xor     a
+        ld      (TmsPatternAddr), a
         ld      a, (TmsPatternAddr+1) 
         and     38h
         ld      (TmsPatternAddr+1), a
-        rrca                            ; register value is address / 800H
+        rrca
         rrca
         rrca
         ld      e, TmsPatternReg
@@ -381,7 +382,7 @@ TmsInitNonBitmap:
 ; initialize for bitmapped graphics
 TmsBitmap:
         call    TmsReset
-        ld      de, (TmsNameAddr)       ; initialize nametable with 3 sets
+        ld      de, (TmsNameAddr)       ; initialize name table with 3 sets
         call    TmsWriteAddr            ; of 256 bytes ranging from 00-FF
         ld      b, 3
         xor     a
@@ -390,15 +391,15 @@ TmsBitmapLoop:
         inc     a
         jp      nz, TmsBitmapLoop
         djnz    TmsBitmapLoop
-        ld      hl, TmsBitmapFlags      ; configure registers for bitmapped graphics
+        ld      hl, TmsBitmapFlags
         ld      (TmsMode), hl
 
-        ; Bitmap color and pattern table configuration
+        ; set up color table at 0H (register = 7FH) or 2000H (register = 0FFH)
         xor     a
-        ld      (TmsColorAddr), a       ; clear lower byte of addresses
+        ld      (TmsColorAddr), a
         ld      (TmsPatternAddr), a
         ld      a, (TmsColorAddr+1)
-        and     20h                     ; mask off unused address bits
+        and     20h
         ld      (TmsColorAddr+1), a
         ld      a, 0ffh                 ; color table at 2000H
         jp      nz, TmsColorTableHigh
@@ -406,8 +407,10 @@ TmsBitmapLoop:
 TmsColorTableHigh:
         ld      e, TmsColorTableReg
         call    TmsSetReg
+
+        ; set up pattern table at 0H (register = 3) or 2000H (register = 7)
         ld      a, (TmsPatternAddr+1)
-        and     20h                     ; mask off unused address bits
+        and     20h
         ld      (TmsPatternAddr+1), a
         ld      a, 7                    ; pattern table at 2000H
         jp      nz, TmsPatternTableHigh
@@ -417,38 +420,39 @@ TmsPatternTableHigh:
         call    TmsSetReg
         ; fall through to TmsInitCommon
 
+
 ; common initialization for all modes
 TmsInitCommon:
-        ; set up name table address
-        xor     a                       
-        ld      (TmsNameAddr), a        ; mask off unused address bits
+        ; set up name table address (register = address / 400H)
+        xor     a
+        ld      (TmsNameAddr), a
         ld      a, (TmsNameAddr+1)
         and     3ch
         ld      (TmsNameAddr+1), a
-        rrca                            ; register value is address / 400H
+        rrca
         rrca
         ld      e, TmsNameReg
         call    TmsSetReg
 
-        ; set up sprite pattern table address
-        ld      a, (TmsSpriteAttrAddr)  
-        and     80h                     ; mask off unused address bits
+        ; set up sprite pattern table address (register = address / 80H)
+        ld      a, (TmsSpriteAttrAddr)
+        and     80h
         ld      (TmsSpriteAttrAddr), a
         ld      d, a
         ld      a, (TmsSpriteAttrAddr+1)
         and     7fh
-        rl      d                       ; register value is address / 80H
+        rl      d
         rla
         ld      e, TmsSpriteAttrReg
         call    TmsSetReg
 
-        ; set up sprite attribute table address
+        ; set up sprite attribute table address (register = address / 800H)
         xor     a                       
-        ld      (TmsSpritePatternAddr), a ; mask off unused address bits
+        ld      (TmsSpritePatternAddr), a
         ld      a, (TmsSpritePatternAddr+1)
         and     38h
         ld      (TmsSpritePatternAddr+1), a
-        rrca                            ; register value is address / 800H
+        rrca
         rrca
         rrca
         ld      e, TmsSpritePatternReg
@@ -472,7 +476,7 @@ TmsWriteAddr:
         call    TmsRegOut
         ld      a, d                    ; mask off msb to max of 16KB
         and     3fh
-        or      40h                     ; set second highest bit to indicate write
+        or      TmsWriteBit             ; indicate that this is a write
         call    TmsRegOut
         ret
 
@@ -491,12 +495,12 @@ TmsReadAddr:
 ;       DE = vram destination address
 ;       BC = byte count
 TmsWrite:
-        call    TmsWriteAddr            ; set the starting address
+        call    TmsWriteAddr
 TmsWriteLoop:
-        ld      a, (hl)                 ; get the current byte from ram
+        ld      a, (hl)
         call    TmsRamOut
-        inc     hl                      ; next byte
-        dec     bc                      ; continue until count is zero
+        inc     hl
+        dec     bc
         ld      a, b
         or      c
         jp      nz, TmsWriteLoop
@@ -508,13 +512,13 @@ TmsWriteLoop:
 ;       BC = byte count
 TmsFill:
         push    af
-        call    TmsWriteAddr            ; set the starting address
+        call    TmsWriteAddr
         pop     af
 TmsFillLoop:
         call    TmsRamOut
         dec     c
         jp      nz, TmsFillLoop
-        djnz    TmsFillLoop             ; continue until count is zero
+        djnz    TmsFillLoop
         ret
 
 ; ---------------------------------------------------------------------------
@@ -522,7 +526,7 @@ TmsFillLoop:
 ; set text color
 ;       A = requested color
 TmsTextColor:
-        add     a, a                    ; shift text color into high nybble
+        add     a, a                    ; text color into high nybble
         add     a, a
         add     a, a
         add     a, a
@@ -548,20 +552,20 @@ TmsTextPos:
         add     hl, hl                  ; Y x 20
         add     hl, hl                  ; Y x 40
         ld      e, a
-        add     hl, de                  ; add column for final address
+        add     hl, de                  ; add X for final address
         ld      de, (TmsNameAddr)       ; add name table base address
         add     hl, de
-        ex      de, hl                  ; send address to TMS
+        ex      de, hl
         jp      TmsWriteAddr
 
 ; copy a null-terminated string to VRAM
 ;       HL = ram source address
 TmsStrOut:
-        ld      a, (hl)                 ; get the current byte from ram
+        ld      a, (hl)
         cp      0                       ; return when NULL is encountered
         ret     z
         call    TmsRamOut
-        inc     hl                      ; next byte
+        inc     hl
         jp      TmsStrOut
 
 ; repeat a character a certain number of times
@@ -596,7 +600,7 @@ TmsPlotPixel:
         cp      192
         ret     nc
         call    TmsXYAddr               ; get address in DE for X/Y coord in BC
-        ld      hl, TmsMaskLookup          ; address of mask in table
+        ld      hl, TmsMaskLookup       ; address of mask in table
         ld      a, c                    ; get lower 3 bits of X coord
         and     7
         ld      b, 0
