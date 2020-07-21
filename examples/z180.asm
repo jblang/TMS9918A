@@ -177,7 +177,7 @@ z180l2: ld      c, Z180_CCR             ; check clock divider
         dec     e                       ; divider enabled, decrease clock
         ret
 
-; set clock multiple in A (0 = divide by two)
+; enable clock divider (1/2 crystal frequency)
 z180clkslow:
         ld      c, Z180_CMR
         ld      d, 7fh
@@ -192,6 +192,7 @@ z180clr:
         and     d
         jp      z180out
 
+; normal clock at crystal frequency
 z180clknorm:
         ld      c, Z180_CMR
         ld      d, 7fh
@@ -200,6 +201,7 @@ z180clknorm:
         ld      d, 80h
         jp      z180set                 ; set /divide bit
 
+; enable clock multiplier (2X crystal frequency)
 z180clkfast:
         ld      c, Z180_CMR
         ld      d, 80h

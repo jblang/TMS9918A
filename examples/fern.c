@@ -2,7 +2,10 @@
  * Barnsley Fern for RC2014 with TMS9918A video card
  * 
  * Compile with z88dk: 
- * zcc +cpm -lm -create-app -ofern fern.c tmsc.asm
+ * zcc +cpm --math32 -create-app -ofern fern.c tmsc.asm z180c.asm
+ * 
+ * For Z180 hardware multiply, add -mz180:
+ * zcc +cpm --math32 -mz180 -create-app -ofern fern.c tmsc.asm z180c.asm
  * 
  * Press any key to quit.
  * 
@@ -13,11 +16,21 @@
 #include <stdlib.h>
 #include <conio.h>
 #include "tms.h"
+#include "z180.h"
 
 main()
 {
-    tmsbitmap();
-	tmsfill(TMS_FGBG(TMS_DARKGREEN, TMS_BLACK), TMS_BITMAPCOLORTBL, TMS_BITMAPCOLORLEN);
+	if (!TmsProbe()) {
+		printf("TMS9918A not found, aborting!\n");
+		return;
+	}
+	if (Z180Detect() != 0xFF) {
+		TmsSetWait(Z180GetClock());
+	} else {
+		TmsSetWait(0);
+	}
+    TmsBitmap();
+	TmsFill(TMS_FGBG(TMS_DARKGREEN, TMS_BLACK), TMS_BITMAPCOLORTBL, TMS_BITMAPCOLORLEN);
 	float x = 0, y = 0, nx, ny;
 	while (!kbhit()) {
 		uint8_t r = rand()/(RAND_MAX/100);
@@ -36,6 +49,6 @@ main()
 		}
 		x = nx;
 		y = ny;
-		tmsplotpixel(127+x*17, 191-y*17);
+		TmsPlotPixel(127+x*17, 191-y*17);
 	}
 }

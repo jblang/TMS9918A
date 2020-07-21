@@ -21,37 +21,39 @@
 
 SECTION code
 
-PUBLIC _tmsintenable
-PUBLIC _tmsintdisable
+PUBLIC _TmsIntEnable
+PUBLIC _TmsIntDisable
 
-PUBLIC _tmswrite
-PUBLIC _tmsfill
+PUBLIC _TmsWrite
+PUBLIC _TmsFill
 
-PUBLIC _tmsbackground
-PUBLIC _tmstextcolor
-PUBLIC _tmstextpos
-PUBLIC _tmsstrout
-PUBLIC _tmschrrpt
-PUBLIC _tmschrout
+PUBLIC _TmsBackground
+PUBLIC _TmsTextColor
+PUBLIC _TmsTextPos
+PUBLIC _TmsStrOut
+PUBLIC _TmsRepeat
+PUBLIC _TmsChrOut
 
-PUBLIC _tmspixelop
-PUBLIC _tmsplotpixel
-PUBLIC _tmspixelcolor
+PUBLIC _TmsPixelOp
+PUBLIC _TmsPlotPixel
+PUBLIC _TmsPixelColor
 
-PUBLIC _tmsmulticolor
-PUBLIC _tmsbitmap
-PUBLIC _tmstextmode
-PUBLIC _tmstile
+PUBLIC _TmsMulticolor
+PUBLIC _TmsBitmap
+PUBLIC _TmsTextMode
+PUBLIC _TmsTile
+PUBLIC _TmsProbe
+PUBLIC _TmsSetWait
 
 include "tms.asm"
 
-_tmsintenable:
-	jp	tmsintenable
+_TmsIntEnable:
+	jp	TmsIntEnable
 
-_tmsintdisable:
-	jp	tmsintdisable
+_TmsIntDisable:
+	jp	TmsIntDisable
 
-_tmswrite:
+_TmsWrite:
         ld 	hl, 2
         add	hl, sp
         ld 	c, (hl)		; len
@@ -66,9 +68,9 @@ _tmswrite:
         inc	hl
         ld 	h, (hl)
 	ld	l, a
-	jp	tmswrite
+	jp	TmsWrite
 
-_tmsfill:
+_TmsFill:
         ld 	hl, 2
         add	hl, sp
         ld 	c, (hl)		; len
@@ -81,71 +83,71 @@ _tmsfill:
         inc	hl
         ld 	a, (hl)		; value
 	ld	l, a
-	jp	tmsfill
+	jp	TmsFill
 
-_tmsbackground:
+_TmsBackground:
         ld 	hl, 2
         add	hl, sp
         ld 	a, (hl)		; color
-	jp	tmsbackground
+	jp	TmsBackground
 
-_tmstextcolor:
+_TmsTextColor:
         ld 	hl, 2
         add	hl, sp
         ld 	a, (hl)		; color
-	jp	tmstextcolor
+	jp	TmsTextColor
 
-_tmstextpos:
+_TmsTextPos:
 	ld	hl, 2
 	add	hl, sp
 	ld	a, (hl)		; x
 	inc	hl
 	ld	e, (hl)		; y
-	jp	tmstextpos
+	jp	TmsTextPos
 
-_tmsstrout:
+_TmsStrOut:
 	ld	hl, 2
 	add	hl, sp
 	ld	a, (hl)		; str
 	inc	hl
 	ld	h, (hl)
 	ld	l, a
-	jp	tmsstrout
+	jp	TmsStrOut
 
-_tmschrrpt:
+_TmsRepeat:
 	ld	hl, 2
 	add	hl, sp
 	ld	a, (hl)		; chr
 	inc 	hl
 	inc 	hl
 	ld	b, (hl)		; count
-	jp	tmschrrpt
+	jp	TmsRepeat
 
-_tmschrout:
+_TmsChrOut:
 	ld	hl, 2
 	add	hl, sp
 	ld	a, (hl)		; chr
-	jp	tmschrout
+	jp	TmsChrOut
 
-_tmspixelop:
+_TmsPixelOp:
 	ld	hl, 2
 	add	hl, sp
 	ld	a, (hl)		; operation
 	inc	hl
 	ld	h, (hl)
 	ld	l, a
-	jp	tmspixelop
+	jp	TmsPixelOp
 
-_tmsplotpixel:
+_TmsPlotPixel:
 	ld	hl, 2
 	add	hl, sp
 	ld	b, (hl)			; y
 	inc 	hl
 	inc 	hl
 	ld	c, (hl)			; x
-	jp 	tmsplotpixel
+	jp 	TmsPlotPixel
 	
-_tmspixelcolor:
+_TmsPixelColor:
 	ld	hl, 2
 	add	hl, sp
 	ld	b, (hl)			; y
@@ -155,22 +157,35 @@ _tmspixelcolor:
 	inc	hl
 	inc	hl
 	ld	a, (hl)			; color
-	jp	tmspixelcolor
+	jp	TmsPixelColor
 
-_tmsmulticolor:
-	jp	tmsmulticolor
+_TmsMulticolor:
+	jp	TmsMulticolor
 
-_tmsbitmap:
-	jp	tmsbitmap
+_TmsBitmap:
+	jp	TmsBitmap
 
-_tmstextmode:
+_TmsTextMode:
         ld 	hl, 2
         add	hl, sp
         ld 	e, (hl)			; font
         inc	hl
         ld 	d, (hl)
         ex 	de, hl
-	jp	tmstextmode
+	jp	TmsTextMode
 
-_tmstile:
-	jp 	tmstile
+_TmsTile:
+	jp 	TmsTile
+
+_TmsProbe:
+	call	TmsProbe
+	ld	hl, 1
+	ret	nz
+	ld	hl, 0
+	ret
+
+_TmsSetWait:
+	ld 	hl, 2
+	add	hl, sp
+	ld 	e, (hl)			; wait
+	jp	TmsSetWait

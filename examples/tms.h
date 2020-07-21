@@ -25,14 +25,14 @@
 #define TMS_H
 #include <stdint.h>
 
-extern void tmsintenable();
-extern void tmsintdisable();
+extern void TmsIntEnable();
+extern void TmsIntDisable();
 
 #define TMS_BITMAPCOLORTBL 0x2000
 #define TMS_BITMAPCOLORLEN 0x1800
 
-extern void tmswrite(uint16_t source, uint16_t dest, uint16_t len);
-extern void tmsfill(uint8_t value, uint16_t dest, uint16_t len);
+extern void TmsWrite(uint16_t source, uint16_t dest, uint16_t len);
+extern void TmsFill(uint8_t value, uint16_t dest, uint16_t len);
 
 enum tmscolors {
     TMS_TRANSPARENT,
@@ -54,25 +54,26 @@ enum tmscolors {
 };
 #define TMS_FGBG(fg, bg) ((fg) << 4 | (bg))
 
-extern void tmsbackground(uint8_t color);
-extern void tmstextcolor(uint8_t color);
+extern void TmsBackground(uint8_t color);
+extern void TmsTextColor(uint8_t color);
 
-extern void tmstextpos(uint8_t x, uint8_t y);
-extern void tmsstrout(char *str);
-extern void tmschrout(char chr);
-extern void tmschrrpt(char chr, uint8_t count);
+extern void TmsTextPos(uint8_t x, uint8_t y);
+extern void TmsStrOut(char *str);
+extern void TmsChrOut(char chr);
+extern void TmsRepeat(char chr, uint8_t count);
 
 #define TMS_CLEARPIXEL 0xA02F
 #define TMS_SETPIXEL 0x00B0
 
-extern void tmspixelop(uint16_t op);
-extern void tmsplotpixel(uint8_t x, uint8_t y);
-extern void tmspixelcolor(uint8_t x, uint8_t y, uint8_t color);
+extern void TmsPixelOp(uint16_t op);
+extern void TmsPlotPixel(uint8_t x, uint8_t y);
+extern void TmsPixelColor(uint8_t x, uint8_t y, uint8_t color);
 
-extern void tmsmulticolor();
-extern void tmsbitmap();
-extern void tmstextmode(uint16_t font);
-extern void tmstile();
-
+extern uint8_t TmsProbe();
+extern void TmsSetWait(uint8_t wait);
+extern void TmsMulticolor();
+extern void TmsBitmap();
+extern void TmsTextMode(uint16_t font);
+extern void TmsTile();
 
 #endif

@@ -171,7 +171,7 @@ TmsPorts:                               ; List of ports to probe:
         defb 0beh                       ; ColecoVision / SG-1000
         defb 98h                        ; MSX
         defb 10h                        ; Sord M5 (conflicts with z80ctrl SIO port)
-        defb 8                          ; Tatung Einstein (conflicts with z80ctrl drive ports)
+        ;defb 8                         ; Tatung Einstein (conflicts with z80ctrl drive ports)
         ;defb 1                         ; MTX (not supported by TMS9918A video card)
         ; add additional ports to check here
 TmsNumPorts:    equ $ - TmsPorts
@@ -228,6 +228,9 @@ TmsRamIn:
 TmsRamInDelay:
         djnz    TmsRamInDelay
         in      a, (c)
+        ld      bc, (TmsPort)
+TmsRamInDelay2:
+        djnz    TmsRamInDelay2
         pop     bc
         ret
 
@@ -600,14 +603,13 @@ TmsPlotPixel:
         cp      192
         ret     nc
         call    TmsXYAddr               ; get address in DE for X/Y coord in BC
-        ld      hl, TmsMaskLookup       ; address of mask in table
         ld      a, c                    ; get lower 3 bits of X coord
         and     7
         ld      b, 0
         ld      c, a
+        ld      hl, TmsMaskLookup       ; address of mask in table
         add     hl, bc
-        ld      a, (hl)                 ; save mask in A
-        ld      b, a
+        ld      b, (hl)                 ; save mask in B
         ld      hl, (TmsPatternAddr)    ; get base address for pattern table
         add     hl, de
         ex      de, hl
@@ -616,7 +618,9 @@ TmsPlotPixel:
 TmsPixelOpPlaceHolder:
         or      b                       ; mask bit in previous byte
         nop                             ; place holder for 2 byte mask operation
+        push    af
         call    TmsWriteAddr            ; set write address within pattern table
+        pop     af
         jp      TmsRamOut
 
 TmsMaskLookup:
@@ -627,6 +631,7 @@ TmsMaskLookup:
 ;       C = X position
 ;       A = foreground/background color to set
 TmsPixelColor:
+        push    af
         ld      a, b                    ; bail out if Y coord > 191
         cp      192
         ret     nc
@@ -635,6 +640,7 @@ TmsPixelColor:
         add     hl, de
         ex      de, hl
         call    TmsWriteAddr            ; set write address within color table
+        pop     af
         jp      TmsRamOut
 
 ; calculate address byte containing X/Y coordinate
