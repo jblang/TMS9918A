@@ -59,15 +59,11 @@ PatternLoop:
         ld      bc, ColorLen
         call    TmsWrite
 
-        ld      hl, grid1                       ; init variables
-        ld      (CurrGrid), hl
-        ld      hl, grid2
-        ld      (NextGrid), hl
         ld      ix, 3                           ; divide by 3 counter
 
         ld      de, 0                           ; clear frame counter
 MainLoop:
-        ld      hl, (NextGrid)                  ; init cell pointer
+        ld      hl, Grid                        ; init cell pointer
         ld      c, GridHeight                   ; init row counter
 XLoop:
         ld      b, GridWidth                    ; init column counter
@@ -82,14 +78,9 @@ YLoop:
         jp      nz, XLoop
         inc     d                               ; frame counter
         dec     ix
-        jp      nz, FlipBuffers
+        jp      nz, WaitVsync
         ld      ix, 3
         inc     e                               ; frame/3 counter
-FlipBuffers:
-        ld      bc, (NextGrid)                  ; swap buffer pointers
-        ld      hl, (CurrGrid)
-        ld      (CurrGrid), bc
-        ld      (NextGrid), hl
 
 WaitVsync:
         call    TmsRegIn
@@ -97,7 +88,7 @@ WaitVsync:
         jr      z, WaitVsync
 
         push    de
-        ld      hl, (CurrGrid)                  ; copy current data into name table
+        ld      hl, Grid                        ; copy current data into name table
         ld      de, (TmsNameAddr)
         ld      bc, GridSize
         call    TmsWrite
@@ -178,13 +169,7 @@ TightWave:                                      ; Plasma
         include "z180.asm"
         include "utility.asm"
 
-CurrGrid:
-        defw 0                                  ; pointers to grid buffers
-NextGrid:
-        defw 0
-
-grid1:  defs    GridSize                        ; grid buffers
-grid2:  defs    GridSize
+Grid:   defs    GridSize                        ; grid buffers
 
 SaveCMR:
         defb    0                               ; original Z180 register values
