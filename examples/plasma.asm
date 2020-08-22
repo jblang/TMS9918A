@@ -59,40 +59,34 @@ PatternLoop:
         ld      bc, ColorLen
         call    TmsWrite
 
+        exx
         ld      ix, 3                           ; divide by 3 counter
-
         ld      de, 0                           ; clear frame counter
+        ld      h, SinTable >> 8
+        exx
 MainLoop:
-        ld      hl, Grid                        ; init cell pointer
-        ld      c, GridHeight                   ; init row counter
-XLoop:
-        ld      b, GridWidth                    ; init column counter
-YLoop:
-        ; this can be any of these: LooseWave, TightWave, Gradient, or Munching
-        call    TightWave                       ; calculate current cell
-        and     7fh
-        ld      (hl), a                         ; save cell in buffer
-        inc     hl                              ; cell pointer
-        djnz    YLoop                           ; next column
-        dec     c                               ; next row
-        jp      nz, XLoop
+        ld      hl, Grid
+        ld      c, GridHeight
+        call    Gradient
+        
+        exx
         inc     d                               ; frame counter
         dec     ix
-        jp      nz, WaitVsync
+        jp      nz, SkipE
         ld      ix, 3
         inc     e                               ; frame/3 counter
+SkipE:
+        exx
 
 WaitVsync:
         call    TmsRegIn
         and     80h
         jr      z, WaitVsync
 
-        push    de
         ld      hl, Grid                        ; copy current data into name table
         ld      de, (TmsNameAddr)
         ld      bc, GridSize
         call    TmsWrite
-        pop     de
 
         call    keypress
         jp      z, MainLoop
@@ -115,54 +109,120 @@ NoTms:  ld      de, NoTmsMessage
         call    strout
         jp      Exit
 
+; sine table
+        defs    (($ & 0FF00h) + 100h) - $       ; page align
+SinTable:
+        defb    0,3,6,9,12,15,18,21,24,27,30,34,37,39
+        defb    42,45,48,51,54,57,60,62,65,68,70,73,75
+        defb    78,80,83,85,87,90,92,94,96,98,100,102
+        defb    104,106,107,109,110,112,113,115,116,117
+        defb    118,120,121,122,122,123,124,125,125,126
+        defb    126,126,127,127,127,127,127,127,127,126
+        defb    126,126,125,125,124,123,122,122,121,120
+        defb    118,117,116,115,113,112,110,109,107,106
+        defb    104,102,100,98,96,94,92,90,87,85,83,80
+        defb    78,75,73,70,68,65,62,60,57,54,51,48,45
+        defb    42,39,37,34,30,27,24,21,18,15,12,9,6,3
+        defb    -4,-7,-10,-13,-16,-19,-22,-25,-28,-31
+        defb    -35,-38,-40,-43,-46,-49,-52,-55,-58,-61
+        defb    -63,-66,-69,-71,-74,-76,-79,-81,-84,-86
+        defb    -88,-91,-93,-95,-97,-99,-101,-103,-105
+        defb    -107,-108,-110,-111,-113,-114,-116,-117
+        defb    -118,-119,-121,-122,-123,-123,-124,-125
+        defb    -126,-126,-127,-127,-127,-128,-128,-128
+        defb    -128,-128,-128,-128,-127,-127,-127,-126
+        defb    -126,-125,-124,-123,-123,-122,-121,-119
+        defb    -118,-117,-116,-114,-113,-111,-110,-108
+        defb    -107,-105,-103,-101,-99,-97,-95,-93,-91
+        defb    -88,-86,-84,-81,-79,-76,-74,-71,-69,-66
+        defb    -63,-61,-58,-55,-52,-49,-46,-43,-40,-38
+        defb    -35,-31,-28,-25,-22,-19,-16,-13,-10,-7,-4,-1
+        
 Gradient:                                       ; Diagonal Gradient
+        ld      b, GridWidth
+GradX:
         ld      a, b                            ; x
         add     a, c                            ; x + y
+        exx
         sub     d                               ; x + y - time
+        exx
+        and     7fh
+        ld      (hl), a                         ; save cell in buffer
+        inc     hl                              ; cell pointer
+        djnz    GradX
+        dec     c
+        jp      nz, Gradient
         ret
 
 Munching:                                       ; Munching squares
+        ld      b, GridWidth
+MunchX:
         ld      a, b                            ; x
         dec     a                               ; x - 1
         xor     c                               ; (x - 1) xor y
+        exx
         add     a, d                            ; ((x - 1) xor y) + time
+        exx
+        and     7fh
+        ld      (hl), a                         ; save cell in buffer
+        inc     hl                              ; cell pointer
+        djnz    MunchX
+        dec     c
+        jp      nz, Munching
         ret
 
 LooseWave:                                      ; Plasma
-        push    hl
-        ld      h, SinTable >> 8
+        ld      a, c                            ; y
+        exx
+        add     a, d                            ; y + time
+        ld      l, a
+        ld      c, (hl)                         ; sin(y + time)
+        exx
+        ld      b, GridWidth
+LooseX:
         ld      a, b                            ; x
-        add     a, d                            ; x + time
+        exx
+        sub     d                               ; x - time
+        add     a, c                            ; sin(y + time) + x - time
         ld      l, a
-        ld      a, (hl)                         ; sin(x + time)
-        add     a, c                            ; sin(x + time) + y
-        sub     d                               ; sin(x + time) + y - time
-        ld      l, a
-        ld      a, (hl)                         ; sin(sin(x + time) + y - time)
-        pop     hl
+        ld      a, (hl)                         ; sin(sin(y + time) + x - time)
+        exx
+        and     7fh
+        ld      (hl), a                         ; save cell in grid buffer
+        inc     hl
+        djnz    LooseX
+        dec     c
+        jp      nz, LooseWave
         ret
 
 TightWave:                                      ; Plasma
-        push    hl
-        push    bc
-        ld      h, SinTable >> 8
-        ld      a, b                            ; x
-        add     a, e                            ; x + time/3
-        ld      l, a
-        ld      a, (hl)                         ; sin(x + time/3)
-        add     a, d                            ; sin(X + time/3) + time
-        ld      l, a
-        ld      b, (hl)                         ; sin(sin(X + time/3) + time)
         ld      a, c                            ; y
+        exx
         add     a, d                            ; y + time
         ld      l, a
         ld      a, (hl)                         ; sin(y + time)
         add     a, e                            ; sin(y + time) + time/3
         ld      l, a
-        ld      a, (hl)                         ; sin(sin(y + time) + time/3)
-        add     a, b                            ; sin(sin(y + time) + time/3) + sin(sin(X + time/3) + time)
-        pop     bc
-        pop     hl
+        ld      c, (hl)                         ; sin(sin(y + time) + time/3)
+        exx
+        ld      b, GridWidth                    ; column counter
+TightX:
+        ld      a, b                            ; x
+        exx
+        add     a, e                            ; x + time/3
+        ld      l, a
+        ld      a, (hl)                         ; sin(x + time/3)
+        add     a, d                            ; sin(x + time/3) + time
+        ld      l, a
+        ld      a, (hl)                         ; sin(sin(x + time/3) + time)
+        add     a, c                            ; sin(sin(x + time/3) + time) + sin(sin(y + time) + time/3)
+        and     7fh
+        exx
+        ld      (hl), a                         ; save cell in grid buffer
+        inc     hl
+        djnz    TightX                          ; next column
+        dec     c
+        jp      nz, TightWave
         ret
 
         include "tms.asm"
@@ -340,32 +400,3 @@ Patterns:
         defb    11111111b
         defb    11111111b
 PatternLen: equ $ - Patterns
-
-; sine table
-        defs    (($ & 0FF00h) + 100h) - $       ; page align
-SinTable:
-        defb    0,3,6,9,12,15,18,21,24,27,30,34,37,39
-        defb    42,45,48,51,54,57,60,62,65,68,70,73,75
-        defb    78,80,83,85,87,90,92,94,96,98,100,102
-        defb    104,106,107,109,110,112,113,115,116,117
-        defb    118,120,121,122,122,123,124,125,125,126
-        defb    126,126,127,127,127,127,127,127,127,126
-        defb    126,126,125,125,124,123,122,122,121,120
-        defb    118,117,116,115,113,112,110,109,107,106
-        defb    104,102,100,98,96,94,92,90,87,85,83,80
-        defb    78,75,73,70,68,65,62,60,57,54,51,48,45
-        defb    42,39,37,34,30,27,24,21,18,15,12,9,6,3
-        defb    -4,-7,-10,-13,-16,-19,-22,-25,-28,-31
-        defb    -35,-38,-40,-43,-46,-49,-52,-55,-58,-61
-        defb    -63,-66,-69,-71,-74,-76,-79,-81,-84,-86
-        defb    -88,-91,-93,-95,-97,-99,-101,-103,-105
-        defb    -107,-108,-110,-111,-113,-114,-116,-117
-        defb    -118,-119,-121,-122,-123,-123,-124,-125
-        defb    -126,-126,-127,-127,-127,-128,-128,-128
-        defb    -128,-128,-128,-128,-127,-127,-127,-126
-        defb    -126,-125,-124,-123,-123,-122,-121,-119
-        defb    -118,-117,-116,-114,-113,-111,-110,-108
-        defb    -107,-105,-103,-101,-99,-97,-95,-93,-91
-        defb    -88,-86,-84,-81,-79,-76,-74,-71,-69,-66
-        defb    -63,-61,-58,-55,-52,-49,-46,-43,-40,-38
-        defb    -35,-31,-28,-25,-22,-19,-16,-13,-10,-7,-4,-1
