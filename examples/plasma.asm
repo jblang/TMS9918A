@@ -67,7 +67,7 @@ PatternLoop:
 MainLoop:
         ld      hl, Grid
         ld      c, GridHeight
-        call    Gradient
+        call    TightWave
         
         exx
         inc     d                               ; frame counter
@@ -242,8 +242,155 @@ OldSP:  defw    0
         defs    40h
 Stack:
 
+colorPalettes:
+Pal00:  defb $01,#01,$0e,#0e,$0f
+Pal01:  defb $01,$01,$01,$0c,$0c
+Pal02:  defb $03,$07,$05,$0d,$06
+Pal03:  defb #06,$06,$0d,#01,$04
+Pal04:  defb $04,#01,$0a,$06,$06
+Pal05:  defb $09,$0e,$05,$0c,$0c
+Pal06:  defb $04,#01,$0a,$09,$0b
+Pal07:  defb $03,$07,$0e,$0a,$06
+Pal08:  defb $0f,$07,$05,$0d,$06
+Pal09:  defb $03,$0c,#01,$0d,$09
+Pal0a:  defb $07,$05,#01,$0a,$09
+Pal0b:  defb $09,$0d,$04,$05,$07
+Pal0c:  defb $09,$0a,#06,#01,$05
+
+; black/black/grey/grey/white
+        defb    011h,011h
+        defb    0e1h,0e1h
+        defb    0eeh,0eeh
+        defb    0feh,0feh
+        defb    0efh,0efh
+        defb    0eeh,0eeh
+        defb    01eh,01eh
+        defb    011h,011h
+
+; black/black/black/dark green/dark green
+        defb    011h,011h
+        defb    011h,011h
+        defb    0c1h,0c1h
+        defb    0cch,0cch
+        defb    0cch,0cch
+        defb    01ch,01ch
+        defb    011h,011h
+        defb    011h,011h
+
+; light green/cyan/light blue/purple/dark red
+        defb    073h,073h
+        defb    057h,057h
+        defb    0d5h,0d5h
+        defb    06dh,06dh
+        defb    0d6h,0d6h
+        defb    05dh,05dh
+        defb    075h,075h
+        defb    037h,037h
+
+Colors:
+; white/cyan/light blue/purple/dark red
+        defb    07fh,07fh
+        defb    057h,057h
+        defb    0d5h,0d5h
+        defb    06dh,06dh
+        defb    0d6h,0d6h
+        defb    05dh,05dh
+        defb    075h,075h
+        defb    0f7h,0f7h
+
+; dark red/dark red/purple/black/dark blue
+        defb    066h,066h
+        defb    0d6h,0d6h
+        defb    01dh,01dh
+        defb    041h,041h
+        defb    014h,014h
+        defb    0d1h,0d1h
+        defb    06dh,06dh
+        defb    066h,066h
+
+; dark blue/black/dark yellow/dark red/dark read
+        defb    014h,014h
+        defb    0a1h,0a1h
+        defb    06ah,06ah
+        defb    066h,066h
+        defb    066h,066h
+        defb    0a6h,0a6h
+        defb    01ah,01ah
+        defb    041h,041h
+
+; orange/grey/light blue/dark green/dark green
+        defb    0e9h,0e9h
+        defb    05eh,05eh
+        defb    0c5h,0c5h
+        defb    0cch,0cch
+        defb    0cch,0cch
+        defb    05ch,05ch
+        defb    0e5h,0e5h
+        defb    09eh,09eh
+
+; dark blue/black/dark yellow/orange/light yellow
+        defb    014h,014h
+        defb    0a1h,0a1h
+        defb    09ah,09ah
+        defb    0b9h,0b9h
+        defb    09bh,09bh
+        defb    0a9h,0a9h
+        defb    01ah,01ah
+        defb    041h,041h
+
+; light green/cyan/grey/dark yellow/dark red
+        defb    073h,073h
+        defb    0e7h,0e7h
+        defb    0aeh,0aeh
+        defb    06ah,06ah
+        defb    0a6h,0a6h
+        defb    0eah,0eah
+        defb    07eh,07eh
+        defb    037h,037h
+
+; light green/dark green/black/purple/orange
+        defb    0c3h,0c3h
+        defb    01ch,01ch
+        defb    0d1h,0d1h
+        defb    09dh,09dh
+        defb    0d9h,0d9h
+        defb    01dh,01dh
+        defb    0c1h,0c1h
+        defb    03ch,03ch
+
+; cyan/light blue/black/yellow/orange
+        defb    057h,057h
+        defb    015h,015h
+        defb    0a1h,0a1h
+        defb    09ah,09ah
+        defb    0a9h,0a9h
+        defb    01ah,01ah
+        defb    051h,051h
+        defb    075h,075h
+
+; orange/purple/dark blue/light blue/cyan
+        defb    0d9h,0d9h
+        defb    04dh,04dh
+        defb    054h,054h
+        defb    075h,075h
+        defb    057h,057h
+        defb    045h,045h
+        defb    0d4h,0d4h
+        defb    09dh,09dh
+
+; orange/dark yellow/dark red/black/light blue
+        defb    0a9h,0a9h
+        defb    06ah,06ah
+        defb    016h,016h
+        defb    051h,051h
+        defb    015h,015h
+        defb    061h,061h
+        defb    0a6h,0a6h
+        defb    09ah,09ah
+
+
 ; Rainbow colors
-Colors: defb    098h,098h
+        defb    098h,098h
         defb    0B9h,0B9h
         defb    03Bh,03Bh
         defb    073h,073h
@@ -264,137 +411,137 @@ Patterns:
         defb    00000000b
         defb    00000000b
         defb    00000000b
-; tile (8,0)-(15,7)
-        defb    00000000b
-        defb    00000000b
+
         defb    00000000b
         defb    00000000b
         defb    00000000b
         defb    00010000b
         defb    00000000b
         defb    00000000b
-; tile (16,0)-(23,7)
         defb    00000000b
-        defb    00000001b
-        defb    10010000b
-        defb    00001000b
-        defb    00000010b
-        defb    10000000b
+        defb    00000000b
+
+        defb    01000000b
+        defb    00000000b
+        defb    00000000b
+        defb    00000000b
+        defb    00000100b
+        defb    00000000b
+        defb    00000000b
+        defb    00000000b
+
+        defb    10001000b
+        defb    00000000b
+        defb    00000000b
+        defb    00000000b
+        defb    00100010b
+        defb    00000000b
+        defb    00000000b
+        defb    00000000b
+
+        defb    10001000b
+        defb    00000000b
         defb    00010000b
-        defb    00000010b
-; tile (24,0)-(31,7)
         defb    00000000b
-        defb    00101010b
         defb    00000000b
-        defb    01001001b
-        defb    00010000b
-        defb    10000100b
-        defb    00100000b
-        defb    00010010b
-; tile (32,0)-(39,7)
-        defb    00100001b
-        defb    01001010b
-        defb    00100001b
-        defb    00010100b
-        defb    01100000b
-        defb    10101001b
+        defb    00100010b
+        defb    00000000b
+        defb    00000000b
+
+        defb    10001000b
+        defb    00000000b
+        defb    00100010b
+        defb    00000000b
         defb    01000100b
-        defb    00010010b
-; tile (40,0)-(47,7)
-        defb    00100100b
-        defb    10010010b
-        defb    01001010b
-        defb    01010100b
-        defb    10001010b
-        defb    00010010b
+        defb    00000000b
+        defb    00010001b
+        defb    00000000b
+
         defb    10101010b
-        defb    10010000b
-; tile (48,0)-(55,7)
+        defb    00000000b
+        defb    01010101b
+        defb    00000000b
         defb    10101010b
-        defb    01001001b
+        defb    00000000b
         defb    01010101b
-        defb    10010010b
-        defb    01010101b
+        defb    00000000b
+
         defb    10101010b
-        defb    01001010b
-        defb    01010101b
-; tile (56,0)-(63,7)
+        defb    01000100b
         defb    10101010b
-        defb    01010101b
+        defb    00010001b
         defb    10101010b
-        defb    01010101b
+        defb    01000100b
+        defb    10101010b
+        defb    00010001b
+
         defb    10101010b
         defb    01010101b
         defb    10101010b
         defb    01010101b
-; tile (64,0)-(71,7)
         defb    10101010b
-        defb    01101101b
-        defb    10101011b
-        defb    10101010b
-        defb    11010010b
-        defb    10101010b
-        defb    01101101b
         defb    01010101b
-; tile (72,0)-(79,7)
-        defb    11011011b
-        defb    01101010b
+        defb    10101010b
+        defb    01010101b
+
+        defb    01010101b
         defb    10111011b
-        defb    01010110b
-        defb    10101001b
-        defb    01010111b
-        defb    11111010b
-        defb    01010110b
-; tile (80,0)-(87,7)
-        defb    10111101b
-        defb    11010111b
-        defb    01111010b
-        defb    10101111b
-        defb    11101010b
-        defb    10111110b
-        defb    11010101b
-        defb    11011101b
-; tile (88,0)-(95,7)
+        defb    01010101b
+        defb    11101110b
+        defb    01010101b
+        defb    10111011b
+        defb    01010101b
+        defb    11101110b
+
+        defb    01010101b
+        defb    11111111b
+        defb    10101010b
         defb    11111111b
         defb    01010101b
         defb    11111111b
         defb    10101010b
         defb    11111111b
-        defb    11010101b
-        defb    10111111b
-        defb    11101011b
-; tile (96,0)-(103,7)
+
+        defb    01110111b
         defb    11111111b
-        defb    01101101b
+        defb    11011101b
         defb    11111111b
-        defb    11011011b
-        defb    10111111b
-        defb    11101101b
-        defb    01111111b
-        defb    11101101b
-; tile (104,0)-(111,7)
+        defb    10111011b
         defb    11111111b
+        defb    11101110b
         defb    11111111b
-        defb    01101111b
-        defb    11110110b
-        defb    11111111b
-        defb    01111111b
-        defb    11101101b
-        defb    11111111b
-; tile (112,0)-(119,7)
-        defb    11111111b
-        defb    11111111b
-        defb    11111111b
+
+        defb    01110111b
         defb    11111111b
         defb    11101111b
         defb    11111111b
-        defb    11111111b
-        defb    11111111b
-; tile (120,0)-(127,7)
-        defb    11111111b
+        defb    11011101b
         defb    11111111b
         defb    11111111b
         defb    11111111b
+
+        defb    01110111b
+        defb    11111111b
+        defb    11111111b
+        defb    11111111b
+        defb    11011101b
+        defb    11111111b
+        defb    11111111b
+        defb    11111111b
+
+        defb    01111111b
+        defb    11111111b
+        defb    11111111b
+        defb    11111111b
+        defb    11111101b
+        defb    11111111b
+        defb    11111111b
+        defb    11111111b
+
+        defb    11111111b
+        defb    11111111b
+        defb    11111111b
+        defb    11110111b
         defb    11111111b
         defb    11111111b
         defb    11111111b
