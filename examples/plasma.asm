@@ -1,9 +1,10 @@
-; Plasma Effect for TMS9918
+; Plasma Effect for TMS9918 by J.B. Langston
 ; 
-; Based on 6809 Plasma Code by Matt Sarnoff (msarnoff.org)
-; Ported to Z80 by J.B. Langston
+; Color Palettes and Sine Routines ported from Plascii Petsma by Cruzer/Camelot
+; https://csdb.dk/release/?id=159933
 ;
-; Original source: https://github.com/74hc595/Ultim809/blob/master/code/user/plasma/plasma.asm
+; Gradient Patterns from Produkthandler Kom Her by Cruzer/Camelot
+; https://csdb.dk/release/?id=760
 
 ScreenWidth:    equ 32
 ScreenHeight:   equ 24
@@ -39,17 +40,18 @@ NoZ180:
         jp      z, NoTms
 
         call    TmsTile
+        call    InitSines
         call    LoadPatternTable
-        call    LoadColorTable        
+        call    LoadColorTable
         exx
         ld      ix, 3                           ; divide by 3 counter
         ld      de, 0                           ; clear frame counter
-        ld      h, SinTable >> 8
+        ld      h, Sine256 >> 8
         exx
 MainLoop:
         ld      hl, ScreenBuffer
         ld      c, ScreenHeight
-        call    TightWave
+        call    Munching
         
         exx
         inc     d                               ; frame counter
@@ -155,34 +157,87 @@ AddColorLoop:
         djnz    AddColorLoop
         ret
         
-; sine table
-        defs    (($ & 0FF00h) + 100h) - $       ; page align
-SinTable:
-        defb    0,3,6,9,12,15,18,21,24,27,30,34,37,39
-        defb    42,45,48,51,54,57,60,62,65,68,70,73,75
-        defb    78,80,83,85,87,90,92,94,96,98,100,102
-        defb    104,106,107,109,110,112,113,115,116,117
-        defb    118,120,121,122,122,123,124,125,125,126
-        defb    126,126,127,127,127,127,127,127,127,126
-        defb    126,126,125,125,124,123,122,122,121,120
-        defb    118,117,116,115,113,112,110,109,107,106
-        defb    104,102,100,98,96,94,92,90,87,85,83,80
-        defb    78,75,73,70,68,65,62,60,57,54,51,48,45
-        defb    42,39,37,34,30,27,24,21,18,15,12,9,6,3
-        defb    -4,-7,-10,-13,-16,-19,-22,-25,-28,-31
-        defb    -35,-38,-40,-43,-46,-49,-52,-55,-58,-61
-        defb    -63,-66,-69,-71,-74,-76,-79,-81,-84,-86
-        defb    -88,-91,-93,-95,-97,-99,-101,-103,-105
-        defb    -107,-108,-110,-111,-113,-114,-116,-117
-        defb    -118,-119,-121,-122,-123,-123,-124,-125
-        defb    -126,-126,-127,-127,-127,-128,-128,-128
-        defb    -128,-128,-128,-128,-127,-127,-127,-126
-        defb    -126,-125,-124,-123,-123,-122,-121,-119
-        defb    -118,-117,-116,-114,-113,-111,-110,-108
-        defb    -107,-105,-103,-101,-99,-97,-95,-93,-91
-        defb    -88,-86,-84,-81,-79,-76,-74,-71,-69,-66
-        defb    -63,-61,-58,-55,-52,-49,-46,-43,-40,-38
-        defb    -35,-31,-28,-25,-22,-19,-16,-13,-10,-7,-4,-1
+; pre-calculated sine table from python script:
+
+; #!/usr/bin/python3
+; import math
+; amp = 0xfe
+; for i in range(0, 0x40):
+;     sin = 2 + amp / 2 + amp * 0.499999 * math.sin(i / (0x100 / 2 / math.pi))
+;     if i & 7 == 0:
+;         print("defb    ", end="")
+;     print(hex(int(sin)).replace("0x", "$"), end="\n" if i & 7 == 7 else ",")
+
+SineSrc:
+        defb    $81,$84,$87,$8a,$8d,$90,$93,$96
+        defb    $99,$9c,$9f,$a2,$a5,$a8,$ab,$ae
+        defb    $b1,$b4,$b7,$ba,$bc,$bf,$c2,$c4
+        defb    $c7,$ca,$cc,$cf,$d1,$d3,$d6,$d8
+        defb    $da,$dc,$df,$e1,$e3,$e5,$e7,$e8
+        defb    $ea,$ec,$ed,$ef,$f1,$f2,$f3,$f5
+        defb    $f6,$f7,$f8,$f9,$fa,$fb,$fc,$fc
+        defb    $fd,$fe,$fe,$ff,$ff,$ff,$ff,$ff
+
+; Mirror and complement sine table above to produce full period
+
+InitSines:
+        ld      bc, SineSrc
+        ld      de, Sine256
+        ld      hl, Sine256+$7f
+        exx
+        ld      b, $40
+        ld      de, Sine256+$80
+        ld      hl, Sine256+$ff
+SineMirrorLoop:
+        exx
+        ld      a, (bc)
+        ld      (de), a
+        ld      (hl), a
+        inc     bc
+        inc     de
+        dec     hl
+        exx
+        cpl
+        ld      (de), a
+        ld      (hl), a
+        inc     de
+        dec     hl
+        djnz    SineMirrorLoop
+
+; make 1 copy of sine table at full amplitude,
+; 2 copies at 1/2 amplitude, and 2 copies at 1/4 amplitude
+
+        ld      bc, Sine256
+        ld      de, Sine256+$100
+        ld      hl, Sine128
+        exx
+        ld      bc, Sine128+$100
+        ld      de, Sine64
+        ld      hl, Sine64+$100     
+SineCopyLoop:
+        exx
+        ld      a, (bc)
+        ld      (de), a
+        or      a
+        rra
+        ld      (hl), a
+        inc     bc
+        inc     de
+        inc     hl
+        exx
+        ld      (bc), a
+        or      a
+        rra
+        ld      (de), a
+        ld      (hl), a
+        inc     bc
+        inc     de
+        inc     hl
+        ld      a, l
+        or      a
+        jp      nz, SineCopyLoop
+        ret
+
         
 Gradient:                                       ; Diagonal Gradient
         ld      b, ScreenWidth
@@ -208,6 +263,7 @@ MunchX:
         exx
         add     a, d                            ; ((x - 1) xor y) + time
         exx
+        add     a, a
         ld      (hl), a                         ; save cell in buffer
         inc     hl                              ; cell pointer
         djnz    MunchX
@@ -603,3 +659,7 @@ PatternLen:     equ $ - Patterns
 NumPatterns:    equ PatternLen / 8
 PatternRepeats: equ 256 / NumPatterns
 ColorRepeats:   equ NumPatterns / 8
+
+Sine256:        equ ($ + $ff) & $ff00          ; page align
+Sine128:        equ Sine256+$200
+Sine64:         equ Sine128+$200
