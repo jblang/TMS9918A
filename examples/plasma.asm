@@ -1,23 +1,23 @@
-; Plasma Effect for TMS9918 by J.B. Langston
+; Plasma Effect for TMS9918A and Z80 by J.B. Langston
 ; 
 ; Color Palettes and Sine Routines ported from Plascii Petsma by Cruzer/Camelot
 ; https://csdb.dk/release/?id=159933
 ;
-; Gradient Patterns from Produkthandler Kom Her by Cruzer/Camelot
+; Gradient Patterns ripped from Produkthandler Kom Her by Cruzer/Camelot
 ; https://csdb.dk/release/?id=760
 
+NumSinePnts:    equ 8
 ScreenWidth:    equ 32
 ScreenHeight:   equ 24
 ScreenSize:     equ ScreenWidth*ScreenHeight
-NumColors:      equ 8
 
-        org 100h
+        org     $100
 
         ld      (OldSP), sp
         ld      sp, Stack
         call    z180detect                      ; detect Z180
         ld      e, 0
-        jp      nz, NoZ180                      ; not detected; skip Z180 initialization
+        jp      nz, NoZ180
         ld      hl, SaveCMR                     ; save Z180 registers
         ld      c, Z180_CMR
         call    z180save
@@ -31,43 +31,33 @@ NumColors:      equ 8
         call    z180memwait                     ; memory waits required for faster clock
         ld      a, 3                            ; io waits required for faster clock
         call    z180iowait
-        call    z180clkfast                     ; moar speed!
-        call    z180getclk                      ; get clock multiple
+        call    z180clkfast
+        call    z180getclk                      ; get clock multiple for tms wait
 NoZ180:
         call    TmsSetWait                      ; set VDP wait loop based on clock multiple
 
         call    TmsProbe                        ; find what port TMS9918A listens on
         jp      z, NoTms
-
         call    TmsTile
-        call    InitSines
-        call    LoadPatternTable
-        call    LoadColorTable
-        exx
-        ld      ix, 3                           ; divide by 3 counter
-        ld      de, 0                           ; clear frame counter
-        ld      h, Sine256 >> 8
-        exx
-MainLoop:
-        ld      hl, ScreenBuffer
-        ld      c, ScreenHeight
-        call    Munching
         
-        exx
-        inc     d                               ; frame counter
-        dec     ix
-        jp      nz, SkipE
-        ld      ix, 3
-        inc     e                               ; frame/3 counter
-SkipE:
-        exx
+        call    MakeSineTable
+        call    MakeSpeedCode
+        call    LoadPatternTable
+        call    FirstEffect
+
+MainLoop:
+        ld      hl, DurationCnt
+        dec     (hl)
+        call    z, NextEffect
+
+        call    CalcPlasmaFrame
 
 WaitVsync:
         call    TmsRegIn
-        and     80h
+        and     $80
         jr      z, WaitVsync
 
-        ld      hl, ScreenBuffer                        ; copy current data into name table
+        ld      hl, ScreenBuffer                ; display next frame
         ld      de, (TmsNameAddr)
         ld      bc, ScreenSize
         call    TmsWrite
@@ -75,7 +65,7 @@ WaitVsync:
         call    keypress
         jp      z, MainLoop
 
-Exit:   ld      hl, SaveCMR                     ; restore Z180 registers
+Exit:   ld      hl, SaveCMR                     ; restore registers
         ld      c, Z180_CMR
         call    z180restore
         ld      hl, SaveCCR
@@ -84,7 +74,7 @@ Exit:   ld      hl, SaveCMR                     ; restore Z180 registers
         ld      hl, SaveDCNTL
         ld      c, Z180_DCNTL
         call    z180restore
-        ld      sp, (OldSP)                     ; put Stack back to how we found it
+        ld      sp, (OldSP)
         rst     0
 
 NoTmsMessage:
@@ -93,70 +83,6 @@ NoTms:  ld      de, NoTmsMessage
         call    strout
         jp      Exit
 
-LoadPatternTable:
-        ld      de, (TmsPatternAddr)
-        call    TmsWriteAddr
-        ld      b, PatternRepeats
-PatternRepeatLoop:
-        ld      hl, Patterns
-        ld      de, PatternLen
-PatternLoop:
-        ld      a, (hl)
-        call    TmsRamOut
-        inc     hl
-        dec     de
-        ld      a, d
-        or      e
-        jp      nz, PatternLoop
-        djnz    PatternRepeatLoop
-        ret
-
-LoadColorTable:
-        ld      de, (TmsColorAddr)
-        call    TmsWriteAddr
-        ld      hl, (ColorPalette)
-        ld      d, 0
-
-ColorUpLoop:
-        ld      c, (hl)
-        inc     hl
-        ld      a, (hl)
-        or      a
-        jp      z, ColorDown
-        cp      $10
-        jp      z, WrapFirstColor
-        call    AddColors
-        inc     d
-        jp      ColorUpLoop
-
-ColorDown:
-        dec     hl
-ColorDownLoop:
-        ld      c, (hl)
-        dec     hl
-        ld      a, (hl)
-        call    AddColors
-        dec     d
-        jp      nz, ColorDownLoop
-
-WrapFirstColor:
-        dec     hl
-        ld      c, (hl)
-        ld      hl, (ColorPalette)
-        ld      a, (hl)
-
-AddColors:
-        add     a, a
-        add     a, a
-        add     a, a
-        add     a, a
-        or      c
-        ld      b, ColorRepeats
-AddColorLoop:
-        call    TmsRamOut
-        djnz    AddColorLoop
-        ret
-        
 ; pre-calculated sine table from python script:
 
 ; #!/usr/bin/python3
@@ -178,17 +104,16 @@ SineSrc:
         defb    $f6,$f7,$f8,$f9,$fa,$fb,$fc,$fc
         defb    $fd,$fe,$fe,$ff,$ff,$ff,$ff,$ff
 
-; Mirror and complement sine table above to produce full period
-
-InitSines:
+; mirror and complement sine values above to produce full period
+MakeSineTable:
         ld      bc, SineSrc
-        ld      de, Sine256
-        ld      hl, Sine256+$7f
+        ld      de, SineTable
+        ld      hl, SineTable+$7f
         exx
         ld      b, $40
-        ld      de, Sine256+$80
-        ld      hl, Sine256+$ff
-SineMirrorLoop:
+        ld      de, SineTable+$80
+        ld      hl, SineTable+$ff
+SineLoop:
         exx
         ld      a, (bc)
         ld      (de), a
@@ -202,133 +127,256 @@ SineMirrorLoop:
         ld      (hl), a
         inc     de
         dec     hl
-        djnz    SineMirrorLoop
+        djnz    SineLoop
+        ret
 
-; make 1 copy of sine table at full amplitude,
-; 2 copies at 1/2 amplitude, and 2 copies at 1/4 amplitude
+; load as many copies of the patterns as will fit in the pattern table
+LoadPatternTable:
+        ld      de, (TmsPatternAddr)
+        call    TmsWriteAddr
+        ld      b, PatternRepeats
+PatternRepeatLoop:
+        ld      hl, Patterns
+        ld      de, PatternLen
+PatternLoop:
+        ld      a, (hl)
+        call    TmsRamOut
+        inc     hl
+        dec     de
+        ld      a, d
+        or      e
+        jp      nz, PatternLoop
+        djnz    PatternRepeatLoop
+        ret
+        
+; select and initialize plasma effects
+FirstEffect:
+        xor     a
+        ld      (CurrentEffect), a
+        ld      hl, PlasmaParamList
+        ld      (PlasmaParamPnt), hl
+        jp      InitEffect
 
-        ld      bc, Sine256
-        ld      de, Sine256+$100
-        ld      hl, Sine128
+NextEffect:
+        ld      a, (CurrentEffect)
+        inc     a
+        ld      (CurrentEffect), a
+        cp      NumPlasmaParams
+        jp      z, FirstEffect
+        ld      hl, (PlasmaParamPnt)
+        ld      de, PlasmaParamLen
+        add     hl, de
+        ld      (PlasmaParamPnt), hl
+        ; fallthrough
+
+InitEffect:
+        ld      hl, (PlasmaParamPnt)            ; copy parameters
+        ld      de, PlasmaParams
+        ld      bc, PlasmaParamLen
+        ldir
+        
+        xor     a                               ; reset counters
+        ld      (PlasmaCnts), a
+        ld      (PlasmaCnts+1), a
+        ld      (CycleCnt), a
+        ld      (DurationCnt), a
+        
+        call    CalcPlasmaStarts
+        call    LoadColorTable
+        ret
+
+; set up color table using current palette
+LoadColorTable:
+        ld      de, (TmsColorAddr)
+        call    TmsWriteAddr
+        ld      hl, (ColorPalette)
+        ld      d, 0
+ColorUpLoop:
+        ld      c, (hl)
+        inc     hl
+        ld      a, (hl)
+        or      a
+        jp      z, ColorDown
+        cp      $10
+        jp      z, WrapFirstColor
+        call    AddColors
+        inc     d
+        jp      ColorUpLoop
+ColorDown:
+        dec     hl
+ColorDownLoop:
+        ld      c, (hl)
+        dec     hl
+        ld      a, (hl)
+        call    AddColors
+        dec     d
+        jp      nz, ColorDownLoop
+        ret
+WrapFirstColor:
+        dec     hl
+        ld      c, (hl)
+        ld      hl, (ColorPalette)
+        ld      a, (hl)
+        ; fallthrough
+AddColors:
+        add     a, a
+        add     a, a
+        add     a, a
+        add     a, a
+        or      c
+        ld      b, ColorRepeats
+AddColorLoop:
+        call    TmsRamOut
+        djnz    AddColorLoop
+        ret
+
+; calculate starting values for each tile
+CalcPlasmaStarts:
+        ld      hl, SineStartsY
+        ld      de, SinePntsY
+        ld      bc, NumSinePnts
+        ldir
+        ld      hl, PlasmaStarts
+        ld      c, ScreenHeight
+YLoop:
         exx
-        ld      bc, Sine128+$100
-        ld      de, Sine64
-        ld      hl, Sine64+$100     
-SineCopyLoop:
+        ld      bc, SinePntsY
+        ld      hl, SineAddsY
+        ld      de, SinePntsX
+        exx
+        ld      d, NumSinePnts
+SinePntsYLoop:
         exx
         ld      a, (bc)
-        ld      (de), a
-        or      a
-        rra
-        ld      (hl), a
-        inc     bc
-        inc     de
-        inc     hl
-        exx
+        add     a, (hl)
         ld      (bc), a
-        or      a
-        rra
         ld      (de), a
-        ld      (hl), a
         inc     bc
         inc     de
         inc     hl
+        exx
+        dec     d
+        jp      nz, SinePntsYLoop
+        ld      b, ScreenWidth
+XLoop:
+        exx
+        ld      de, SinePntsX
+        ld      hl, SineAddsX
+        ld      b, NumSinePnts
+SinePntsXLoop:
+        ld      a, (de)
+        add     a, (hl)
+        ld      (de), a
+        inc     de
+        inc     hl
+        djnz    SinePntsXLoop
+
+        ld      h, SineTable >> 8
+        ld      de, SinePntsX
+        ld      b, NumSinePnts
+        xor     a
+SineAddLoop:
+        ex      af, af'
+        ld      a, (de)
+        ld      l, a
+        ex      af, af'
+        add     a, (hl)
+        inc     de
+        djnz    SineAddLoop
+        exx
+        ld      (hl), a
+        inc     hl
+        djnz    XLoop
+        dec     c
+        jp      nz, YLoop
+        ret
+
+; calculate new plasma frame from starting point and current offsets
+CalcPlasmaFrame:
+        ld      bc, PlasmaCnts
+        ld      de, (SineSpeeds)        
+        ld      a, (bc)                 
+        ld      h, a                    
+        add     a, e                    
+        ld      (bc), a
+        inc     bc
+        ld      a, (bc)
+        ld      l, a
+        add     a, e
+        ld      (bc), a                   
+        ld      d, SineTable >> 8
+        ld      e, h                    
+        ld      h, d                    
+        ld      bc, (PlasmaFreqs)       
+        exx
+        ld      de, CycleCnt
+        ld      a, (de)
+        ld      c, a
+        ld      hl, CycleSpeed
+        add     a, (hl)
+        ld      (de), a                 
+        ld      hl, PlasmaStarts
+        ld      de, ScreenBuffer
+        jp      SpeedCode
+
+; setup for speedcode:
+;       de  = pointer to first sine table entry
+;       hl  = pointer to second sine table entry
+;       c   = amount to increment first sine pointer between lines
+;       b   = amount to increment second sine pointer between lines
+;       c'  = current cycle count
+;       b'  = offset to add to starting value for current row
+;       hl' = pointer to starting plasma values
+;       de' = pointer to screen back buffer
+;       a   = temporary calculations
+
+RowSrc:
+        exx
+        ld      a, e
+        add     a, c
+        ld      e, a
         ld      a, l
-        or      a
-        jp      nz, SineCopyLoop
-        ret
-
-        
-Gradient:                                       ; Diagonal Gradient
-        ld      b, ScreenWidth
-GradX:
-        ld      a, b                            ; x
-        add     a, c                            ; x + y
-        exx
-        sub     d                               ; x + y - time
-        exx
-        ld      (hl), a                         ; save cell in buffer
-        inc     hl                              ; cell pointer
-        djnz    GradX
-        dec     c
-        jp      nz, Gradient
-        ret
-
-Munching:                                       ; Munching squares
-        ld      b, ScreenWidth
-MunchX:
-        ld      a, b                            ; x
-        dec     a                               ; x - 1
-        xor     c                               ; (x - 1) xor y
-        exx
-        add     a, d                            ; ((x - 1) xor y) + time
-        exx
-        add     a, a
-        ld      (hl), a                         ; save cell in buffer
-        inc     hl                              ; cell pointer
-        djnz    MunchX
-        dec     c
-        jp      nz, Munching
-        ret
-
-LooseWave:                                      ; Plasma
-        ld      a, c                            ; y
-        exx
-        add     a, d                            ; y + time
+        add     a, b
         ld      l, a
-        ld      c, (hl)                         ; sin(y + time)
+        ld      a, (de)
+        add     a, (hl)
+        rra
         exx
-        ld      b, ScreenWidth
-LooseX:
-        ld      a, b                            ; x
-        exx
-        sub     d                               ; x - time
-        add     a, c                            ; sin(y + time) + x - time
-        ld      l, a
-        ld      a, (hl)                         ; sin(sin(y + time) + x - time)
-        exx
-        ld      (hl), a                         ; save cell in screen buffer
+        adc     a, c
+        ld      b, a
+RowSrcLen:     equ $ - RowSrc
+
+ColSrc:
+        ld      a, (hl)
+        add     a, b
+        ld      (de), a
         inc     hl
-        djnz    LooseX
-        dec     c
-        jp      nz, LooseWave
+        inc     de
+ColSrcLen:      equ $ - ColSrc
+
+; build unrolled loops for speed
+MakeSpeedCode:
+        ld      de, SpeedCode
+        ld      a, ScreenHeight
+RowLoop:
+        ld      hl, RowSrc
+        ld      bc, RowSrcLen
+        ldir
+        ex      af, af'
+        ld      a, ScreenWidth
+ColLoop:
+        ld      hl, ColSrc
+        ld      bc, ColSrcLen
+        ldir
+        dec     a
+        jp      nz, ColLoop
+        ex      af, af'
+        dec     a
+        jp      nz, RowLoop
+        ld      a, (RetSrc)
+        ld      (de), a
+RetSrc:
         ret
-
-TightWave:                                      ; Plasma
-        ld      a, c                            ; y
-        exx
-        add     a, d                            ; y + time
-        ld      l, a
-        ld      a, (hl)                         ; sin(y + time)
-        add     a, e                            ; sin(y + time) + time/3
-        ld      l, a
-        ld      c, (hl)                         ; sin(sin(y + time) + time/3)
-        exx
-        ld      b, ScreenWidth                    ; column counter
-TightX:
-        ld      a, b                            ; x
-        exx
-        add     a, e                            ; x + time/3
-        ld      l, a
-        ld      a, (hl)                         ; sin(x + time/3)
-        add     a, d                            ; sin(x + time/3) + time
-        ld      l, a
-        ld      a, (hl)                         ; sin(sin(x + time/3) + time)
-        add     a, c                            ; sin(sin(x + time/3) + time) + sin(sin(y + time) + time/3)
-        exx
-        ld      (hl), a                         ; save cell in screen buffer
-        inc     hl
-        djnz    TightX                          ; next column
-        dec     c
-        jp      nz, TightWave
-        ret
-
-        include "tms.asm"
-        include "z180.asm"
-        include "utility.asm"
-
-ScreenBuffer:
-        defs    ScreenSize
 
 ; original Z180 register values
 SaveCMR:
@@ -339,15 +387,45 @@ SaveDCNTL:
         defb    0
 
 OldSP:  defw    0                
-        defs    40h
-Stack:
 
+; Parameters for current effect
+PlasmaParams:
+SineAddsX:
+        defs    NumSinePnts
+SineAddsY:
+        defs    NumSinePnts
+SineStartsY:
+        defs    NumSinePnts
+SineSpeeds:
+        defs    2
+PlasmaFreqs:
+        defs    2
+CycleSpeed:
+        defs    1
+ColorPalette:
+        defw    0
+PlasmaParamLen: equ $ - PlasmaParams
+
+; misc variables
+PlasmaCnts:
+        defw    0
+CycleCnt:
+        defb    0
+DurationCnt:
+        defb    0
+CurrentEffect:
+        defb    0
+SinePntsX:
+        defs    NumSinePnts
+SinePntsY:
+        defs    NumSinePnts
+PlasmaParamPnt:
+        defw    0
+        
 ; VIC-II to TMS9918 color mappings
 ; compromises with no direct mapping are marked with #
 ; vic:  $00,$01,$02,$03,$04,$05,$06,$07,$08,$09,$0a,$0b,$0c,$0d,$0e,$0f
 ; tms:  $01,$0f,$06,$07,$0d,$0c,$04,$0b,$0a,#0A,#09,#01,$0e,$03,$05,#0E
-
-ColorPalette:   defw    Pal0d
 
 ; palettes pre-mapped from vic to tms
 ColorPalettes:
@@ -365,6 +443,105 @@ Pal0a:  defb    $07,$05,#01,$0a,$09,$00
 Pal0b:  defb    $09,$0d,$04,$05,$07,$00
 Pal0c:  defb    $09,$0a,#06,#01,$05,$00
 Pal0d:  defb    $08,$09,$0b,$03,$07,$05,$04,$0d,$10
+
+; pre-defined plasma parameters
+PlasmaParamList:
+        defb    $fa,$05,$03,$fa,$07,$04,$fe,$fe
+        defb    $fe,$01,$fe,$02,$03,$ff,$02,$02
+        defb    $5e,$e8,$eb,$32,$69,$4f,$0a,$41
+        defb    $fe,$fc
+        defb    $06,$07
+        defb    $ff
+        defw    Pal01
+
+        defb    $04,$05,$fc,$02,$fc,$03,$02,$01
+        defb    $00,$01,$03,$fd,$02,$fd,$fe,$00
+        defb    $51,$a1,$55,$c1,$0d,$5a,$dd,$26
+        defb    $fe,$fd
+        defb    $08,$08
+        defb    $f8
+        defw    Pal06
+
+        defb    $f9,$06,$fe,$fa,$fa,$00,$07,$fb
+        defb    $02,$01,$02,$03,$03,$00,$fd,$00
+        defb    $34,$85,$a6,$11,$89,$2b,$fa,$9c
+        defb    $fc,$fb
+        defb    $09,$08
+        defb    $fa
+        defw    Pal09
+
+        defb    $00,$01,$03,$00,$01,$ff,$04,$fc
+        defb    $01,$ff,$03,$fe,$fe,$03,$02,$02
+        defb    $f3,$02,$0b,$89,$8c,$d3,$23,$aa
+        defb    $fe,$01
+        defb    $07,$07
+        defb    $08
+        defw    Pal0a
+
+        defb    $04,$04,$04,$fc,$fd,$04,$ff,$fc
+        defb    $01,$02,$02,$01,$ff,$00,$ff,$01
+        defb    $3a,$21,$53,$93,$39,$b7,$26,$99
+        defb    $fd,$fe
+        defb    $05,$06
+        defb    $03
+        defw    Pal04
+
+        defb    $fd,$fd,$fd,$02,$04,$00,$fd,$02
+        defb    $03,$02,$fd,$02,$03,$fe,$ff,$ff
+        defb    $bc,$99,$5d,$2f,$e6,$16,$af,$0e
+        defb    $fd,$ff
+        defb    $07,$07
+        defb    $f5
+        defw    Pal07
+
+        defb    $fc,$00,$00,$ff,$04,$04,$00,$01
+        defb    $fd,$03,$00,$02,$00,$03,$02,$03
+        defb    $30,$c7,$07,$60,$36,$2b,$e8,$ec
+        defb    $ff,$fe
+        defb    $09,$03
+        defb    $f8
+        defw    Pal05
+
+        defb    $fd,$fc,$fe,$00,$00,$04,$fe,$01
+        defb    $03,$03,$fe,$02,$00,$03,$fe,$00
+        defb    $21,$d7,$34,$1b,$5d,$eb,$8e,$7d
+        defb    $fd,$ff
+        defb    $0a,$03
+        defb    $fd
+        defw    Pal03
+
+        defb    $fe,$00,$ff,$01,$04,$02,$fe,$fd
+        defb    $02,$01,$fe,$01,$03,$ff,$03,$ff
+        defb    $0b,$0f,$ea,$8c,$e0,$f8,$05,$0e
+        defb    $fc,$fd
+        defb    $07,$06
+        defb    $f8
+        defw    Pal0c
+
+        defb    $33,$04,$34,$fc,$dd,$24,$cf,$7c
+        defb    $c1,$73,$02,$31,$fe,$a0,$ee,$01
+        defb    $3a,$21,$53,$93,$39,$b7,$26,$99
+        defb    $00,$00
+        defb    $04,$01
+        defb    $fd
+        defw    Pal00
+
+        defb    $ff,$00,$01,$ff,$02,$fe,$00,$02
+        defb    $ff,$02,$01,$02,$fe,$01,$00,$00
+        defb    $1d,$bb,$c5,$a3,$ab,$6c,$ed,$a6
+        defb    $fd,$fe
+        defb    $03,$03
+        defb    $f8
+        defw    Pal08
+
+        defb    $02,$03,$fd,$fd,$01,$fc,$fd,$00
+        defb    $01,$03,$fd,$fe,$fe,$03,$00,$00
+        defb    $69,$ac,$3b,$c1,$fe,$21,$37,$84
+        defb    $fc,$fd
+        defb    $06,$05
+        defb    $fa
+        defw    Pal0b
+NumPlasmaParams:        equ ($ - PlasmaParamList) / PlasmaParamLen
 
 ; gradient patterns
 Patterns:
@@ -660,6 +837,12 @@ NumPatterns:    equ PatternLen / 8
 PatternRepeats: equ 256 / NumPatterns
 ColorRepeats:   equ NumPatterns / 8
 
-Sine256:        equ ($ + $ff) & $ff00          ; page align
-Sine128:        equ Sine256+$200
-Sine64:         equ Sine128+$200
+        include "tms.asm"
+        include "z180.asm"
+        include "utility.asm"
+
+SineTable:      equ ($ + $ff) & $ff00          ; page align
+Stack:          equ SineTable + $200
+PlasmaStarts:   equ Stack
+ScreenBuffer:   equ PlasmaStarts + ScreenSize
+SpeedCode:      equ ScreenBuffer + ScreenSize
