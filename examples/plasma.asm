@@ -190,33 +190,17 @@ LoadColorTable:
         ld      de, (TmsColorAddr)
         call    TmsWriteAddr
         ld      hl, (ColorPalette)
-        ld      d, 0
-ColorUpLoop:
         ld      c, (hl)
+        ld      d, c
+        ld      e, PaletteLen-1
+AddColorLoop:
         inc     hl
         ld      a, (hl)
-        or      a
-        jp      z, ColorDown
-        cp      $10
-        jp      z, WrapFirstColor
         call    AddColors
-        inc     d
-        jp      ColorUpLoop
-ColorDown:
-        dec     hl
-ColorDownLoop:
         ld      c, (hl)
-        dec     hl
-        ld      a, (hl)
-        call    AddColors
-        dec     d
-        jp      nz, ColorDownLoop
-        ret
-WrapFirstColor:
-        dec     hl
-        ld      c, (hl)
-        ld      hl, (ColorPalette)
-        ld      a, (hl)
+        dec     e
+        jp      nz, AddColorLoop
+        ld      a, d
         ; fallthrough
 AddColors:
         add     a, a
@@ -225,9 +209,9 @@ AddColors:
         add     a, a
         or      c
         ld      b, ColorRepeats
-AddColorLoop:
+ColorRepeatLoop:
         call    TmsRamOut
-        djnz    AddColorLoop
+        djnz    ColorRepeatLoop
         ret
 
 ; calculate starting values for each tile
@@ -385,8 +369,8 @@ SaveCCR:
         defb    0
 SaveDCNTL:
         defb    0
-
-OldSP:  defw    0                
+OldSP:
+        defw    0                
 
 ; Parameters for current effect
 PlasmaParams:
@@ -422,28 +406,6 @@ SinePntsY:
 PlasmaParamPnt:
         defw    0
         
-; VIC-II to TMS9918 color mappings
-; compromises with no direct mapping are marked with #
-; vic:  $00,$01,$02,$03,$04,$05,$06,$07,$08,$09,$0a,$0b,$0c,$0d,$0e,$0f
-; tms:  $01,$0f,$06,$07,$0d,$0c,$04,$0b,$0a,#0A,#09,#01,$0e,$03,$05,#0E
-
-; palettes pre-mapped from vic to tms
-ColorPalettes:
-Pal00:  defb    $01,#01,$0e,#0e,$0f,$00
-Pal01:  defb    $01,$01,$01,$0c,$0c,$00
-Pal02:  defb    $03,$07,$05,$0d,$06,$00
-Pal03:  defb    #06,$06,$0d,#01,$04,$00
-Pal04:  defb    $04,#01,$0a,$06,$06,$00
-Pal05:  defb    $09,$0e,$05,$0c,$0c,$00
-Pal06:  defb    $04,#01,$0a,$09,$0b,$00
-Pal07:  defb    $03,$07,$0e,$0a,$06,$00
-Pal08:  defb    $0f,$07,$05,$0d,$06,$00
-Pal09:  defb    $03,$0c,#01,$0d,$09,$00
-Pal0a:  defb    $07,$05,#01,$0a,$09,$00
-Pal0b:  defb    $09,$0d,$04,$05,$07,$00
-Pal0c:  defb    $09,$0a,#06,#01,$05,$00
-Pal0d:  defb    $08,$09,$0b,$03,$07,$05,$04,$0d,$10
-
 ; pre-defined plasma parameters
 PlasmaParamList:
         defb    $fa,$05,$03,$fa,$07,$04,$fe,$fe
@@ -836,6 +798,30 @@ PatternLen:     equ $ - Patterns
 NumPatterns:    equ PatternLen / 8
 PatternRepeats: equ 256 / NumPatterns
 ColorRepeats:   equ NumPatterns / 8
+PaletteLen:     equ 32 / ColorRepeats
+
+; VIC-II to TMS9918 color mappings
+; compromises with no direct mapping are marked with #
+; vic:  $00,$01,$02,$03,$04,$05,$06,$07,$08,$09,$0a,$0b,$0c,$0d,$0e,$0f
+; tms:  $01,$0f,$06,$07,$0d,$0c,$04,$0b,$0a,#0A,#09,#01,$0e,$03,$05,#0E
+
+; palettes pre-mapped from vic to tms
+ColorPalettes:
+Pal00:  defb    $01,#01,$0e,#0e,$0f,#0e,$0e,#01
+Pal01:  defb    $01,$01,$01,$0c,$0c,$0c,$01,$01
+Pal02:  defb    $03,$07,$05,$0d,$06,$0d,$05,$07
+Pal03:  defb    #06,$06,$0d,#01,$04,#01,$0d,$06
+Pal04:  defb    $04,#01,$0a,$06,$06,$06,$0a,#01
+Pal05:  defb    $09,$0e,$05,$0c,$0c,$0c,$05,$0e
+Pal06:  defb    $04,#01,$0a,$09,$0b,$09,$0a,#01
+Pal07:  defb    $03,$07,$0e,$0a,$06,$0a,$0e,$07
+Pal08:  defb    $0f,$07,$05,$0d,$06,$0d,$05,$07
+Pal09:  defb    $03,$0c,#01,$0d,$09,$0d,#01,$0c
+Pal0a:  defb    $07,$05,#01,$0a,$09,$0a,#01,$05
+Pal0b:  defb    $09,$0d,$04,$05,$07,$05,$04,$0d
+Pal0c:  defb    $09,$0a,#06,#01,$05,#01,#06,$0a
+Pal0d:  defb    $08,$09,$0b,$03,$07,$05,$04,$0d
+NumPalettes:    equ ($ - ColorPalettes) / PaletteLen
 
         include "tms.asm"
         include "z180.asm"
