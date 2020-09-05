@@ -39,6 +39,9 @@ NoZ180:
         call    TmsProbe                        ; find what port TMS9918A listens on
         jp      z, NoTms
         call    TmsTile
+
+        ld      de, About
+        call    strout
         
         call    MakeSineTable
         call    MakeSpeedCode
@@ -46,11 +49,16 @@ NoZ180:
         call    FirstEffect
 
 MainLoop:
+        ld      a, (HoldEffect)
+        or      a
+        jp      nz, NoEffectCycle
         ld      hl, DurationCnt
         dec     (hl)
         call    z, NextEffect
-
-        call    CalcPlasmaFrame
+NoEffectCycle:
+        ld      a, (StopAnimation)
+        or      a
+        call    z, CalcPlasmaFrame
 
 WaitVsync:
         call    TmsRegIn
@@ -64,6 +72,8 @@ WaitVsync:
 
         call    keypress
         jp      z, MainLoop
+        call    ProcessCommand
+        jp      MainLoop
 
 Exit:   ld      hl, SaveCMR                     ; restore registers
         ld      c, Z180_CMR
@@ -82,6 +92,228 @@ NoTmsMessage:
 NoTms:  ld      de, NoTmsMessage
         call    strout
         jp      Exit
+
+ShowHelp:
+        push    af
+        ld      de, Help
+        call    strout
+        pop     af
+        ret
+
+About:
+        defb    "Plasma for TMS9918", cr, lf
+        defb    "Z80 Code by J.B. Langston", cr, lf, cr, lf
+        defb    "Color Palettes and Sine Routines ported from "
+        defb    "Plascii Petsma by Cruzer/Camelot", cr, lf
+        defb    "Gradient Patterns ripped from "
+        defb    "Produkthandler Kom Her by Cruzer/Camelot", cr, lf, cr, lf
+        defb    "Press 'q' to quit, '?' for help.", cr, lf, "$"
+
+Help:
+        defb    cr, lf, "Commands:", cr, lf
+        defb    " ?     help", cr, lf
+        defb    " q     quit", cr, lf
+        defb    " h     hold current effect on/off", cr, lf
+        defb    " p     switch palette", cr, lf
+        defb    " n     next effect", cr, lf
+        defb    " a     animation on/off", cr, lf
+        defb    " v     view parameters", cr, lf, cr, lf
+        defb    "Parameter Selection:", cr, lf
+        defb    " x     X sine increment", cr, lf
+        defb    " y     Y sine increment", cr, lf
+        defb    " i     initial sine values", cr, lf
+        defb    " c     cycle speed", cr, lf
+        defb    " s     sine speed", cr, lf
+        defb    " f     plasma frequency", cr, lf, cr, lf
+        defb    "Parameter Modification:", cr, lf
+        defb    " 1-8   increment selected parameter (+ shift to decrement)", cr, lf
+        defb    " 0     clear selected parameters", cr, lf, "$"
+
+SineAddsXMsg:
+        defb cr, lf, "Sine Adds X: $"
+SineAddsYMsg:
+        defb cr, lf, "Sine Adds Y: $"
+SineStartsMsg:
+        defb cr, lf, "Sine Starts: $"
+SineSpeedsMsg:
+        defb cr, lf, "Sine Speeds: $"
+PlasmaFreqMsg:
+        defb cr, lf, "Plasma Freq: $"
+CycleSpeedMsg:
+        defb cr, lf, "Cycle Speed: $"
+
+Commands:
+        defb    "?qhpnav0"
+ModeSelectCommands:
+        defb    "xyisfc"
+IncDecCommands:
+        defb    "12345678"
+NumIncCommands: equ $ - IncDecCommands
+        defb    "!@#$%^&*"
+NumCommands:    equ $ - Commands
+
+CommandPointers:
+        defw    ShowHelp
+        defw    Exit
+        defw    ToggleHold
+        defw    NextPalette
+        defw    NextEffect
+        defw    ToggleAnimation
+        defw    ViewParameters
+        defw    ClearParameters
+
+ParameterPointers:
+        defw    SineAddsX
+        defw    SineAddsY
+        defw    SineStartsY
+        defw    SineSpeeds
+        defw    PlasmaFreqs
+        defw    CycleSpeed
+        defw    CycleSpeed+1
+
+ToggleAnimation:
+        ld      a, (StopAnimation)
+        xor     $ff
+        ld      (StopAnimation), a
+        jp      UpdateScreen
+
+ToggleHold:
+        ld      a, (HoldEffect)
+        xor     $ff
+        ld      (HoldEffect), a
+        ret
+
+ProcessCommand:
+        ld      hl, Commands
+        ld      b, NumCommands
+CheckCommandLoop:
+        cp      (hl)
+        jp      z, FoundCommandKey
+        inc     hl
+        djnz    CheckCommandLoop
+        ret
+FoundCommandKey:
+        ld      de, IncDecCommands
+        or      a
+        sbc     hl, de
+        jp      nc, FoundIncDecCommand
+        add     hl, de
+        ld      de, ModeSelectCommands
+        or      a
+        sbc     hl, de
+        jp      nc, FoundModeSelectCommand
+        add     hl, de
+        ld      de, Commands
+        or      a
+        sbc     hl, de
+        ld      de, CommandPointers
+        add     hl, hl
+        add     hl, de
+        ld      a, (hl)
+        inc     hl
+        ld      h, (hl)
+        ld      l, a
+        jp      (hl)
+
+FoundIncDecCommand:
+        ld      a, l
+        cp      NumIncCommands
+        push    af
+        and     7
+        ld      l, a
+        push    hl
+        ld      hl, SelectedParameterLength
+        cp      (hl)
+        pop     hl
+        jp      nc, AbortChangeParameter
+        ld      de, (SelectedParameter)
+        add     hl, de
+        pop     af
+        call    c, IncParameter
+        call    nc, DecParameter
+        call    CalcPlasmaStarts
+        ret
+AbortChangeParameter:
+        pop     af
+        ret
+IncParameter:
+        inc     (hl)
+        ret
+DecParameter:
+        dec     (hl)
+        ret
+
+FoundModeSelectCommand:
+        ld      de, ParameterPointers
+        add     hl, hl
+        add     hl, de
+        ld      e, (hl)
+        inc     hl
+        ld      d, (hl)
+        ld      (SelectedParameter), de
+        inc     hl
+        ld      a, (hl)
+        inc     hl
+        ld      h, (hl)
+        ld      l, a
+        or      a
+        sbc     hl, de
+        ld      a, l
+        ld      (SelectedParameterLength), a
+        ret
+
+ClearParameters:
+        ld      hl, (SelectedParameter)
+        ld      a, (SelectedParameterLength)
+        ld      b, a
+        xor     a
+ClearParameterLoop:
+        ld      (hl), a
+        inc     hl
+        djnz    ClearParameterLoop
+        jp      CalcPlasmaStarts
+
+ViewParameters:
+        ld      hl, PlasmaParams
+        ld      de, SineAddsXMsg
+        call    ShowSinePnts
+        ld      de, SineAddsYMsg
+        call    ShowSinePnts
+        ld      de, SineStartsMsg
+        call    ShowSinePnts
+        ld      de, SineSpeedsMsg
+        call    ShowTwoParams
+        ld      de, PlasmaFreqMsg
+        call    ShowTwoParams
+        ld      de, CycleSpeedMsg
+        call    ShowOneParam
+        call    crlf
+        ret
+ShowOneParam:
+        ld      b, 1
+        jp      ShowBParams
+ShowTwoParams:
+        ld      b, 2
+        jp      ShowBParams
+ShowSinePnts:
+        ld      b, NumSinePnts
+ShowBParams:
+        push    hl
+        push    bc
+        call    strout
+        pop     bc
+        pop     hl
+ShowParameterLoop:
+        ld      a, (hl)
+        inc     hl
+        push    hl
+        push    bc
+        call    hexout
+        call    space
+        pop     bc
+        pop     hl
+        djnz    ShowParameterLoop
+        ret
 
 ; pre-calculated sine table from python script:
 
@@ -148,24 +380,21 @@ PatternLoop:
         jp      nz, PatternLoop
         djnz    PatternRepeatLoop
         ret
-        
-; select and initialize plasma effects
-FirstEffect:
-        xor     a
-        ld      (CurrentEffect), a
-        ld      hl, PlasmaParamList
-        ld      (PlasmaParamPnt), hl
-        jp      InitEffect
 
+; select and initialize plasma effects
 NextEffect:
-        ld      a, (CurrentEffect)
-        inc     a
-        ld      (CurrentEffect), a
-        cp      NumPlasmaParams
-        jp      z, FirstEffect
         ld      hl, (PlasmaParamPnt)
         ld      de, PlasmaParamLen
         add     hl, de
+        ld      (PlasmaParamPnt), hl
+        ld      de, LastPlasmaParam
+        or      a
+        sbc     hl, de
+        jp      c, InitEffect
+        ; fallthrough
+
+FirstEffect:
+        ld      hl, PlasmaParamList
         ld      (PlasmaParamPnt), hl
         ; fallthrough
 
@@ -184,6 +413,20 @@ InitEffect:
         call    CalcPlasmaStarts
         call    LoadColorTable
         ret
+
+; change color palette
+NextPalette:
+        ld      hl, (ColorPalette)
+        ld      de, PaletteLen
+        add     hl, de
+        ld      (ColorPalette), hl
+        ld      de, LastPalette
+        or      a
+        sbc     hl, de
+        jp      c, LoadColorTable
+        ld      hl, ColorPalettes
+        ld      (ColorPalette), hl
+        ; fallthrough
 
 ; set up color table using current palette
 LoadColorTable:
@@ -273,6 +516,11 @@ SineAddLoop:
         djnz    XLoop
         dec     c
         jp      nz, YLoop
+UpdateScreen:
+        ld      hl, PlasmaStarts
+        ld      de, ScreenBuffer
+        ld      bc, ScreenSize
+        ldir
         ret
 
 ; calculate new plasma frame from starting point and current offsets
@@ -286,7 +534,7 @@ CalcPlasmaFrame:
         inc     bc
         ld      a, (bc)
         ld      l, a
-        add     a, e
+        add     a, d
         ld      (bc), a                   
         ld      d, SineTable >> 8
         ld      e, h                    
@@ -395,9 +643,15 @@ PlasmaCnts:
         defw    0
 CycleCnt:
         defb    0
-DurationCnt:
+HoldEffect:
         defb    0
-CurrentEffect:
+StopAnimation:
+        defb    0
+SelectedParameter:
+        defw    CycleSpeed
+SelectedParameterLength:
+        defb    1
+DurationCnt:
         defb    0
 SinePntsX:
         defs    NumSinePnts
@@ -503,7 +757,7 @@ PlasmaParamList:
         defb    $06,$05
         defb    $fa
         defw    Pal0b
-NumPlasmaParams:        equ ($ - PlasmaParamList) / PlasmaParamLen
+LastPlasmaParam:
 
 ; gradient patterns
 Patterns:
@@ -821,7 +1075,7 @@ Pal0a:  defb    $07,$05,#01,$06,$09,$06,#01,$05
 Pal0b:  defb    $09,$0d,$04,$05,$07,$05,$04,$0d
 Pal0c:  defb    $0b,$0a,#06,#01,$05,#01,#06,$0a
 Pal0d:  defb    $08,$09,$0b,$03,$07,$05,$04,$0d
-NumPalettes:    equ ($ - ColorPalettes) / PaletteLen
+LastPalette:
 
         include "tms.asm"
         include "z180.asm"
