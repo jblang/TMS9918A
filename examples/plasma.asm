@@ -43,6 +43,7 @@ NoZ180:
         ld      de, About
         call    strout
         
+        call    RandomSeed
         call    MakeSineTable
         call    MakeSpeedCode
         call    LoadPatternTable
@@ -116,34 +117,36 @@ Help:
         defb    " h     hold current effect on/off", cr, lf
         defb    " p     switch palette", cr, lf
         defb    " n     next effect", cr, lf
+        defb    " d     default values", cr, lf
         defb    " a     animation on/off", cr, lf
+        defb    " r     random parameters", cr, lf
         defb    " v     view parameters", cr, lf, cr, lf
         defb    "Parameter Selection:", cr, lf
-        defb    " x     X sine increment", cr, lf
-        defb    " y     Y sine increment", cr, lf
-        defb    " i     initial sine values", cr, lf
-        defb    " c     cycle speed", cr, lf
-        defb    " s     sine speed", cr, lf
-        defb    " f     plasma frequency", cr, lf, cr, lf
+        defb    " x     x increments", cr, lf
+        defb    " y     y increments", cr, lf
+        defb    " i     initial values", cr, lf
+        defb    " c     linear animation speed", cr, lf
+        defb    " s     sine animation speeds", cr, lf
+        defb    " f     distortion frequencies", cr, lf, cr, lf
         defb    "Parameter Modification:", cr, lf
         defb    " 1-8   increment selected parameter (+ shift to decrement)", cr, lf
         defb    " 0     clear selected parameters", cr, lf, "$"
 
 SineAddsXMsg:
-        defb cr, lf, "Sine Adds X: $"
+        defb cr, lf, "x increments: $"
 SineAddsYMsg:
-        defb cr, lf, "Sine Adds Y: $"
+        defb cr, lf, "y increments: $"
 SineStartsMsg:
-        defb cr, lf, "Sine Starts: $"
+        defb cr, lf, "init values:  $"
 SineSpeedsMsg:
-        defb cr, lf, "Sine Speeds: $"
+        defb cr, lf, "sine speeds:  $"
 PlasmaFreqMsg:
-        defb cr, lf, "Plasma Freq: $"
+        defb cr, lf, "distort freq: $"
 CycleSpeedMsg:
-        defb cr, lf, "Cycle Speed: $"
+        defb cr, lf, "cycle speed:  $"
 
 Commands:
-        defb    "?qhpnav0"
+        defb    "?qhpndavr0"
 ModeSelectCommands:
         defb    "xyisfc"
 IncDecCommands:
@@ -158,8 +161,10 @@ CommandPointers:
         defw    ToggleHold
         defw    NextPalette
         defw    NextEffect
+        defw    InitEffect
         defw    ToggleAnimation
         defw    ViewParameters
+        defw    RandomParameters
         defw    ClearParameters
 
 ParameterPointers:
@@ -313,6 +318,118 @@ ShowParameterLoop:
         pop     bc
         pop     hl
         djnz    ShowParameterLoop
+        ret
+
+; four bytes in screen buffer data offset by refresh register as random seed
+RandomSeed:
+        ld      hl, ScreenBuffer
+        ld      a, r
+        ld      d, 0
+        ld      e, a
+        add     hl, de
+        ld      b, 4
+        ld      de, Seed1
+RandomSeedLoop:
+        ld      a, (hl)
+        xor     l
+        ld      (de), a
+        inc     hl
+        inc     de
+        djnz    RandomSeedLoop
+        ret
+
+; https://wikiti.brandonw.net/index.php?title=Z80_Routines:Math:Random
+; Combined LFSR/LCG, 16-bit seeds
+
+RandomNumber:
+        ld      hl, (Seed1)
+        ld      b, h
+        ld      c, l
+        add     hl, hl
+        add     hl, hl
+        inc     l
+        add     hl, bc
+        ld      (Seed1), hl
+        ld      hl, (Seed2)
+        add     hl, hl
+        sbc     a, a
+        and     %00101101
+        xor     l
+        ld      l, a
+        ld      (Seed2), hl
+        add     hl, bc
+        ret
+
+; generate complete set of random parameters
+RandomParameters:
+        ld      d, 0
+        ld      c, 7                    ; -8 to 7
+        ld      b, NumSinePnts
+        ld      hl, SineAddsX
+        call    RandomSeries
+        ld      c, 3                    ; -4 to 3
+        ld      b, NumSinePnts
+        ld      hl, SineAddsY
+        call    RandomSeries
+        ld      c, $7f                  ; -128 to 127
+        ld      b, NumSinePnts
+        ld      hl, SineStartsY
+        call    RandomSeries
+        ld      c, 3                    ; -4 to 3
+        ld      b, 2
+        ld      hl, SineSpeeds
+        call    RandomSeries
+        ld      c, 3                    ; 1 to 8
+        ld      d, 5
+        ld      b, 2
+        ld      hl, PlasmaFreqs
+        call    RandomSeries
+        ld      c, 7                    ; -16 to -1
+        ld      d, -8
+        ld      b, 1
+        ld      hl, CycleSpeed
+        call    RandomSeries
+        call    RandomNumber            ; randomly select palette
+        ld      a, l
+        and     $f                      ; assumes 16 palettes of 8 colors each
+        ld      h, 0
+        ld      l, a
+        add     hl, hl
+        add     hl, hl
+        add     hl, hl
+        ld      de, ColorPalettes
+        add     hl, de
+        ld      (ColorPalette), hl
+        call    LoadColorTable
+        jp      CalcPlasmaStarts
+
+; generate series of random numbers
+; b = number of random numbers to generate
+; c = mask for random numbers
+; d = offset for random numbers
+RandomSeries:
+        push    bc
+        push    hl
+        call    RandomNumber
+        ld      a, l
+        or      a
+        pop     hl
+        pop     bc
+        call    m, RandomNeg
+        call    p, RandomPos
+        ld      (hl), a
+        inc     hl
+        djnz    RandomSeries
+        ret
+RandomPos:
+        and     c
+        add     a, d
+        ret
+RandomNeg:
+        and     c
+        add     a, d
+        cpl
+        inc     a
         ret
 
 ; pre-calculated sine table from python script:
@@ -658,6 +775,10 @@ SinePntsX:
 SinePntsY:
         defs    NumSinePnts
 PlasmaParamPnt:
+        defw    0
+Seed1:
+        defw    0
+Seed2:
         defw    0
         
 ; pre-defined plasma parameters
@@ -1075,6 +1196,8 @@ Pal0a:  defb    $07,$05,#01,$06,$09,$06,#01,$05
 Pal0b:  defb    $09,$0d,$04,$05,$07,$05,$04,$0d
 Pal0c:  defb    $0b,$0a,#06,#01,$05,#01,#06,$0a
 Pal0d:  defb    $08,$09,$0b,$03,$07,$05,$04,$0d
+Pal0e:  defb    $01,$0c,$02,$03,$0f,$09,$08,$06
+Pal0f:  defb    $01,$04,$05,$07,$0f,$0b,$0a,$0d
 LastPalette:
 
         include "tms.asm"
