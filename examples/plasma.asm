@@ -27,11 +27,6 @@ ScreenSize:     equ ScreenWidth*ScreenHeight
         ld      hl, SaveDCNTL
         ld      c, Z180_DCNTL
         call    z180save
-        ld      a, 1
-        call    z180memwait                     ; memory waits required for faster clock
-        ld      a, 3                            ; io waits required for faster clock
-        call    z180iowait
-        call    z180clkfast
         call    z180getclk                      ; get clock multiple for tms wait
 NoZ180:
         call    TmsSetWait                      ; set VDP wait loop based on clock multiple
