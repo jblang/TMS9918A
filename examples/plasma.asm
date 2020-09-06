@@ -10,11 +10,16 @@ NumSinePnts:    equ 8
 ScreenWidth:    equ 32
 ScreenHeight:   equ 24
 ScreenSize:     equ ScreenWidth*ScreenHeight
+MSX:            equ 0
 
         org     $100
 
         ld      (OldSP), sp
         ld      sp, Stack
+
+        ld      de, About
+        call    strout
+
         call    z180detect                      ; detect Z180
         ld      e, 0
         jp      nz, NoZ180
@@ -26,14 +31,21 @@ NoZ180:
         jp      z, NoTms
         call    TmsTile
 
-        ld      de, About
-        call    strout
-        
         call    RandomSeed
         call    MakeSineTable
         call    MakeSpeedCode
         call    LoadPatternTable
         call    FirstEffect
+
+if MSX
+        di
+        ld      hl, ($39)
+        ld      (MSXVector), hl
+        ld      hl, MSXIntHandler
+        ld      ($39), hl
+        call    TmsIntEnable
+        ei
+endif
 
 MainLoop:
         ld      a, (HoldEffect)
@@ -47,6 +59,14 @@ NoEffectCycle:
         or      a
         call    z, CalcPlasmaFrame
 
+if MSX
+        ld      a, $ff
+        ld      (FrameReady), a
+WaitVsync:
+        ld      a, (FrameReady)
+        or      a
+        jp      nz, WaitVsync
+else
 WaitVsync:
         call    TmsRegIn
         and     $80
@@ -56,6 +76,7 @@ WaitVsync:
         ld      de, (TmsNameAddr)
         ld      bc, ScreenSize
         call    TmsWrite
+endif
 
         call    keypress
         jp      z, MainLoop
@@ -63,8 +84,50 @@ WaitVsync:
         jp      MainLoop
 
 Exit:
+if MSX
+        di
+        ld      hl, (MSXVector)
+        ld      ($39), hl
+        ei
+endif
         ld      sp, (OldSP)
         rst     0
+
+if MSX
+FrameReady:
+        defb    0
+MSXIntHandler:
+        push    af
+        push    hl
+        push    de
+        push    bc
+        ld      a, (FrameReady)
+        or      a
+        jp      z, FrameNotReady
+        ld      de, (TmsNameAddr)
+        call    TmsWriteAddr
+        ld      hl, ScreenBuffer
+        ld      bc, (TmsPort)
+        ld      de, ScreenSize
+        inc     d
+MSXIntLoop:
+        ld      a, (hl)
+        out     (c), a
+        inc     hl
+        dec     e
+        jp      nz, MSXIntLoop
+        dec     d
+        jp      nz, MSXIntLoop
+        xor     a
+        ld      (FrameReady), a
+FrameNotReady:
+        pop     bc
+        pop     de
+        pop     hl
+        pop     af
+MSXVector:      equ $+1
+        jp      0
+endif
 
 NoTmsMessage:
         defb    "TMS9918A not found, aborting!$"
@@ -104,10 +167,10 @@ Help:
         defb    " 0     clear selected parameters", cr, lf, "$"
 
 ShowHelp:
-        push    af
+if !MSX
         ld      de, Help
         call    strout
-        pop     af
+endif
         ret
 
 ; command keys grouped by function
@@ -290,6 +353,9 @@ CycleSpeedMsg:
 
 ; display current parameter values
 ViewParameters:
+if MSX
+        ret
+endif
         ld      hl, PlasmaParams
         ld      de, SineAddsXMsg
         call    ShowSinePnts
@@ -510,8 +576,8 @@ RandomParameters:
         ld      de, ColorPalettes
         add     hl, de
         ld      (ColorPalette), hl
-        call    LoadColorTable
-        jp      CalcPlasmaStarts
+        call    CalcPlasmaStarts
+        jp      LoadColorTable
         
 ; select and initialize plasma effects
 DurationCnt:
