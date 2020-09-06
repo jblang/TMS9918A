@@ -94,13 +94,6 @@ NoTms:  ld      de, NoTmsMessage
         call    strout
         jp      Exit
 
-ShowHelp:
-        push    af
-        ld      de, Help
-        call    strout
-        pop     af
-        ret
-
 About:
         defb    "Plasma for TMS9918", cr, lf
         defb    "Z80 Code by J.B. Langston", cr, lf, cr, lf
@@ -119,7 +112,7 @@ Help:
         defb    " n     next effect", cr, lf
         defb    " d     default values", cr, lf
         defb    " a     animation on/off", cr, lf
-        defb    " r     random parameters", cr, lf
+        defb    " r     toggle random/playlist", cr, lf
         defb    " v     view parameters", cr, lf, cr, lf
         defb    "Parameter Selection:", cr, lf
         defb    " x     x increments", cr, lf
@@ -132,19 +125,14 @@ Help:
         defb    " 1-8   increment selected parameter (+ shift to decrement)", cr, lf
         defb    " 0     clear selected parameters", cr, lf, "$"
 
-SineAddsXMsg:
-        defb cr, lf, "x increments: $"
-SineAddsYMsg:
-        defb cr, lf, "y increments: $"
-SineStartsMsg:
-        defb cr, lf, "init values:  $"
-SineSpeedsMsg:
-        defb cr, lf, "sine speeds:  $"
-PlasmaFreqMsg:
-        defb cr, lf, "distort freq: $"
-CycleSpeedMsg:
-        defb cr, lf, "cycle speed:  $"
+ShowHelp:
+        push    af
+        ld      de, Help
+        call    strout
+        pop     af
+        ret
 
+; command keys grouped by function
 Commands:
         defb    "?qhpndavr0"
 ModeSelectCommands:
@@ -155,6 +143,7 @@ NumIncCommands: equ $ - IncDecCommands
         defb    "!@#$%^&*"
 NumCommands:    equ $ - Commands
 
+; pointers to command functions; must be 1-1 correspondence to commands
 CommandPointers:
         defw    ShowHelp
         defw    Exit
@@ -164,9 +153,10 @@ CommandPointers:
         defw    InitEffect
         defw    ToggleAnimation
         defw    ViewParameters
-        defw    RandomParameters
+        defw    ToggleRandomParams
         defw    ClearParameters
 
+; pointers to parameters; must be 1-1 correspondence to mode select commands
 ParameterPointers:
         defw    SineAddsX
         defw    SineAddsY
@@ -176,18 +166,7 @@ ParameterPointers:
         defw    CycleSpeed
         defw    CycleSpeed+1
 
-ToggleAnimation:
-        ld      a, (StopAnimation)
-        xor     $ff
-        ld      (StopAnimation), a
-        jp      UpdateScreen
-
-ToggleHold:
-        ld      a, (HoldEffect)
-        xor     $ff
-        ld      (HoldEffect), a
-        ret
-
+; dispatch command key in a
 ProcessCommand:
         ld      hl, Commands
         ld      b, NumCommands
@@ -197,6 +176,8 @@ CheckCommandLoop:
         inc     hl
         djnz    CheckCommandLoop
         ret
+
+; determine what category of command it is and handle appropriately
 FoundCommandKey:
         ld      de, IncDecCommands
         or      a
@@ -220,33 +201,11 @@ FoundCommandKey:
         ld      l, a
         jp      (hl)
 
-FoundIncDecCommand:
-        ld      a, l
-        cp      NumIncCommands
-        push    af
-        and     7
-        ld      l, a
-        push    hl
-        ld      hl, SelectedParameterLength
-        cp      (hl)
-        pop     hl
-        jp      nc, AbortChangeParameter
-        ld      de, (SelectedParameter)
-        add     hl, de
-        pop     af
-        call    c, IncParameter
-        call    nc, DecParameter
-        call    CalcPlasmaStarts
-        ret
-AbortChangeParameter:
-        pop     af
-        ret
-IncParameter:
-        inc     (hl)
-        ret
-DecParameter:
-        dec     (hl)
-        ret
+; mode select command; set pointers to appropriate mode variables
+SelectedParameter:
+        defw    CycleSpeed
+SelectedParameterLength:
+        defb    1
 
 FoundModeSelectCommand:
         ld      de, ParameterPointers
@@ -267,6 +226,65 @@ FoundModeSelectCommand:
         ld      (SelectedParameterLength), a
         ret
 
+; increment/decrement command; adjust selected variable
+FoundIncDecCommand:
+        ld      a, l
+        cp      NumIncCommands
+        push    af
+        and     7
+        ld      l, a
+        push    hl
+        ld      hl, SelectedParameterLength
+        cp      (hl)
+        pop     hl
+        jp      nc, AbortChangeParameter
+        ld      de, (SelectedParameter)
+        add     hl, de
+        pop     af
+        call    c, IncParameter
+        call    nc, DecParameter
+        ld      de, SineSpeeds
+        or      a
+        sbc     hl, de
+        call    c, CalcPlasmaStarts
+        ret
+AbortChangeParameter:
+        pop     af
+        ret
+IncParameter:
+        inc     (hl)
+        ret
+DecParameter:
+        dec     (hl)
+        ret
+
+; feature toggles
+HoldEffect:
+        defb    0
+StopAnimation:
+        defb    0
+UseRandomParams:
+        defb    0
+
+ToggleRandomParams:
+        ld      a, (UseRandomParams)
+        xor     $ff
+        ld      (UseRandomParams), a
+        ret
+
+ToggleAnimation:
+        ld      a, (StopAnimation)
+        xor     $ff
+        ld      (StopAnimation), a
+        jp      UpdateScreen
+
+ToggleHold:
+        ld      a, (HoldEffect)
+        xor     $ff
+        ld      (HoldEffect), a
+        ret
+
+; reset selected parameter values to 0
 ClearParameters:
         ld      hl, (SelectedParameter)
         ld      a, (SelectedParameterLength)
@@ -278,6 +296,21 @@ ClearParameterLoop:
         djnz    ClearParameterLoop
         jp      CalcPlasmaStarts
 
+; parameter display names
+SineAddsXMsg:
+        defb cr, lf, "x increment: $"
+SineAddsYMsg:
+        defb cr, lf, "y increment: $"
+SineStartsMsg:
+        defb cr, lf, "init values: $"
+SineSpeedsMsg:
+        defb cr, lf, "sine speeds: $"
+PlasmaFreqMsg:
+        defb cr, lf, "plasma freq: $"
+CycleSpeedMsg:
+        defb cr, lf, "cycle speed: $"
+
+; display current parameter values
 ViewParameters:
         ld      hl, PlasmaParams
         ld      de, SineAddsXMsg
@@ -318,118 +351,6 @@ ShowParameterLoop:
         pop     bc
         pop     hl
         djnz    ShowParameterLoop
-        ret
-
-; four bytes in screen buffer data offset by refresh register as random seed
-RandomSeed:
-        ld      hl, ScreenBuffer
-        ld      a, r
-        ld      d, 0
-        ld      e, a
-        add     hl, de
-        ld      b, 4
-        ld      de, Seed1
-RandomSeedLoop:
-        ld      a, (hl)
-        xor     l
-        ld      (de), a
-        inc     hl
-        inc     de
-        djnz    RandomSeedLoop
-        ret
-
-; https://wikiti.brandonw.net/index.php?title=Z80_Routines:Math:Random
-; Combined LFSR/LCG, 16-bit seeds
-
-RandomNumber:
-        ld      hl, (Seed1)
-        ld      b, h
-        ld      c, l
-        add     hl, hl
-        add     hl, hl
-        inc     l
-        add     hl, bc
-        ld      (Seed1), hl
-        ld      hl, (Seed2)
-        add     hl, hl
-        sbc     a, a
-        and     %00101101
-        xor     l
-        ld      l, a
-        ld      (Seed2), hl
-        add     hl, bc
-        ret
-
-; generate complete set of random parameters
-RandomParameters:
-        ld      d, 0
-        ld      c, 7                    ; -8 to 7
-        ld      b, NumSinePnts
-        ld      hl, SineAddsX
-        call    RandomSeries
-        ld      c, 3                    ; -4 to 3
-        ld      b, NumSinePnts
-        ld      hl, SineAddsY
-        call    RandomSeries
-        ld      c, $7f                  ; -128 to 127
-        ld      b, NumSinePnts
-        ld      hl, SineStartsY
-        call    RandomSeries
-        ld      c, 3                    ; -4 to 3
-        ld      b, 2
-        ld      hl, SineSpeeds
-        call    RandomSeries
-        ld      c, 3                    ; 1 to 8
-        ld      d, 5
-        ld      b, 2
-        ld      hl, PlasmaFreqs
-        call    RandomSeries
-        ld      c, 7                    ; -16 to -1
-        ld      d, -8
-        ld      b, 1
-        ld      hl, CycleSpeed
-        call    RandomSeries
-        call    RandomNumber            ; randomly select palette
-        ld      a, l
-        and     $f                      ; assumes 16 palettes of 8 colors each
-        ld      h, 0
-        ld      l, a
-        add     hl, hl
-        add     hl, hl
-        add     hl, hl
-        ld      de, ColorPalettes
-        add     hl, de
-        ld      (ColorPalette), hl
-        call    LoadColorTable
-        jp      CalcPlasmaStarts
-
-; generate series of random numbers
-; b = number of random numbers to generate
-; c = mask for random numbers
-; d = offset for random numbers
-RandomSeries:
-        push    bc
-        push    hl
-        call    RandomNumber
-        ld      a, l
-        or      a
-        pop     hl
-        pop     bc
-        call    m, RandomNeg
-        call    p, RandomPos
-        ld      (hl), a
-        inc     hl
-        djnz    RandomSeries
-        ret
-RandomPos:
-        and     c
-        add     a, d
-        ret
-RandomNeg:
-        and     c
-        add     a, d
-        cpl
-        inc     a
         ret
 
 ; pre-calculated sine table from python script:
@@ -498,8 +419,132 @@ PatternLoop:
         djnz    PatternRepeatLoop
         ret
 
+; set random seed from four bytes in screen buffer data offset by refresh register
+RandomSeed:
+        ld      hl, ScreenBuffer
+        ld      a, r
+        ld      d, 0
+        ld      e, a
+        add     hl, de
+        ld      b, 4
+        ld      de, Seed1
+RandomSeedLoop:
+        ld      a, (hl)
+        xor     l
+        ld      (de), a
+        inc     hl
+        inc     de
+        djnz    RandomSeedLoop
+        ret
+
+; https://wikiti.brandonw.net/index.php?title=Z80_Routines:Math:Random
+; combined LFSR/LCG PRNG, 16-bit seeds
+Seed1:
+        defw    0
+Seed2:
+        defw    0
+
+RandomNumber:
+        ld      hl, (Seed1)
+        ld      b, h
+        ld      c, l
+        add     hl, hl
+        add     hl, hl
+        inc     l
+        add     hl, bc
+        ld      (Seed1), hl
+        ld      hl, (Seed2)
+        add     hl, hl
+        sbc     a, a
+        and     %00101101
+        xor     l
+        ld      l, a
+        ld      (Seed2), hl
+        add     hl, bc
+        ret
+
+; generate series of random numbers
+; b = number of random numbers to generate
+; c = mask for random numbers
+; d = offset for random numbers
+RandomSeries:
+        push    bc
+        push    hl
+        call    RandomNumber
+        ld      a, l
+        or      a
+        pop     hl
+        pop     bc
+        call    m, RandomNeg
+        call    p, RandomPos
+        ld      (hl), a
+        inc     hl
+        djnz    RandomSeries
+        ret
+RandomPos:
+        and     c
+        add     a, d
+        ret
+RandomNeg:
+        and     c
+        add     a, d
+        cpl
+        inc     a
+        ret
+
+; generate complete set of random parameters
+RandomParameters:
+        ld      d, 0
+        ld      c, 7                    ; -8 to 7
+        ld      b, NumSinePnts
+        ld      hl, SineAddsX
+        call    RandomSeries
+        ld      c, 3                    ; -4 to 3
+        ld      b, NumSinePnts
+        ld      hl, SineAddsY
+        call    RandomSeries
+        ld      c, $7f                  ; -128 to 127
+        ld      b, NumSinePnts
+        ld      hl, SineStartsY
+        call    RandomSeries
+        ld      c, 3                    ; -4 to 3
+        ld      b, 2
+        ld      hl, SineSpeeds
+        call    RandomSeries
+        ld      c, 3                    ; 1 to 8
+        ld      d, 5
+        ld      b, 2
+        ld      hl, PlasmaFreqs
+        call    RandomSeries
+        ld      c, 7                    ; -16 to -1
+        ld      d, -8
+        ld      b, 1
+        ld      hl, CycleSpeed
+        call    RandomSeries
+        call    RandomNumber            ; randomly select palette
+        ld      a, l
+        and     $f                      ; assumes 16 palettes of 8 colors each
+        ld      h, 0
+        ld      l, a
+        add     hl, hl
+        add     hl, hl
+        add     hl, hl
+        ld      de, ColorPalettes
+        add     hl, de
+        ld      (ColorPalette), hl
+        call    LoadColorTable
+        jp      CalcPlasmaStarts
+        
 ; select and initialize plasma effects
+DurationCnt:
+        defb    0
+PlasmaParamPnt:
+        defw    0
+
 NextEffect:
+        ld      a, (UseRandomParams)
+        or      a
+        jp      nz, RandomParameters
         ld      hl, (PlasmaParamPnt)
         ld      de, PlasmaParamLen
         add     hl, de
@@ -575,6 +620,11 @@ ColorRepeatLoop:
         ret
 
 ; calculate starting values for each tile
+SinePntsX:
+        defs    NumSinePnts
+SinePntsY:
+        defs    NumSinePnts
+
 CalcPlasmaStarts:
         ld      hl, SineStartsY
         ld      de, SinePntsY
@@ -640,7 +690,12 @@ UpdateScreen:
         ldir
         ret
 
-; calculate new plasma frame from starting point and current offsets
+; calculate new plasma frame from starting point and current counts
+PlasmaCnts:
+        defw    0
+CycleCnt:
+        defb    0
+
 CalcPlasmaFrame:
         ld      bc, PlasmaCnts
         ld      de, (SineSpeeds)        
@@ -755,32 +810,6 @@ ColorPalette:
         defw    0
 PlasmaParamLen: equ $ - PlasmaParams
 
-; misc variables
-PlasmaCnts:
-        defw    0
-CycleCnt:
-        defb    0
-HoldEffect:
-        defb    0
-StopAnimation:
-        defb    0
-SelectedParameter:
-        defw    CycleSpeed
-SelectedParameterLength:
-        defb    1
-DurationCnt:
-        defb    0
-SinePntsX:
-        defs    NumSinePnts
-SinePntsY:
-        defs    NumSinePnts
-PlasmaParamPnt:
-        defw    0
-Seed1:
-        defw    0
-Seed2:
-        defw    0
-        
 ; pre-defined plasma parameters
 PlasmaParamList:
         defb    $fa,$05,$03,$fa,$07,$04,$fe,$fe
