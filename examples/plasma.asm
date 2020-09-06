@@ -18,15 +18,6 @@ ScreenSize:     equ ScreenWidth*ScreenHeight
         call    z180detect                      ; detect Z180
         ld      e, 0
         jp      nz, NoZ180
-        ld      hl, SaveCMR                     ; save Z180 registers
-        ld      c, Z180_CMR
-        call    z180save
-        ld      hl, SaveCCR
-        ld      c, Z180_CCR
-        call    z180save
-        ld      hl, SaveDCNTL
-        ld      c, Z180_DCNTL
-        call    z180save
         call    z180getclk                      ; get clock multiple for tms wait
 NoZ180:
         call    TmsSetWait                      ; set VDP wait loop based on clock multiple
@@ -71,15 +62,7 @@ WaitVsync:
         call    ProcessCommand
         jp      MainLoop
 
-Exit:   ld      hl, SaveCMR                     ; restore registers
-        ld      c, Z180_CMR
-        call    z180restore
-        ld      hl, SaveCCR
-        ld      c, Z180_CCR
-        call    z180restore
-        ld      hl, SaveDCNTL
-        ld      c, Z180_DCNTL
-        call    z180restore
+Exit:
         ld      sp, (OldSP)
         rst     0
 
@@ -777,13 +760,6 @@ ColLoop:
 RetSrc:
         ret
 
-; original Z180 register values
-SaveCMR:
-        defb    0
-SaveCCR:
-        defb    0
-SaveDCNTL:
-        defb    0
 OldSP:
         defw    0                
 
