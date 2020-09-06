@@ -46,6 +46,10 @@ nybhex:
         adc     a, 40h
         ret
 
+space:
+        ld      a, ' '
+        jp      chrout
+
 ; output a new line
 crlf:
         ld      a, cr
