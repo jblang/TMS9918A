@@ -84,13 +84,17 @@ endif
         jp      MainLoop
 
 Exit:
+        ld      sp, (OldSP)
 if MSX
         di
         ld      hl, (MSXVector)
         ld      ($39), hl
         ei
+        ld      a, ($fcb0)
+        rst     $30
+        db      $80
+        dw      $5f
 endif
-        ld      sp, (OldSP)
         rst     0
 
 if MSX
