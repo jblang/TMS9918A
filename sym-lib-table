@@ -1,3 +1,4 @@
 (sym_lib_table
   (lib (name TMS9918)(type Legacy)(uri C:/Users/jblang/Electronics/RC2014/rc9918/TMS9918.lib)(options "")(descr ""))
+  (lib (name TMS9918-rescue)(type Legacy)(uri ${KIPRJMOD}/TMS9918-rescue.lib)(options "")(descr ""))
 )
