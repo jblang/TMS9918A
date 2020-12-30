@@ -45,7 +45,7 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 | JP4 | 1x3 pin straight header and 1 jumper block |
 | D1 | REV4 only: Schottky diode (BAT81 or similar) |
 
-\* This resistor value controls the voltage of the NTSC signal, and therefore the brightness of the picture. Tom Lemense's original circuit specified a 0 ohm resistor (i.e., wire link), but based on my measurements this will result in a voltage higher than NTSC spec. I found that 130 ohm yields a voltage close to NTSC spec.  Higher values will be dimmer and lower values will be brighter.
+\* R2 controls the voltage of the NTSC signal, and therefore the brightness of the picture. Tom Lemense's original circuit specified a 0 ohm resistor (i.e., wire link), but based on my measurements this will result in a voltage higher than NTSC spec. 130 ohm yields a voltage close to NTSC spec.  Higher values will be dimmer and lower values will be brighter.
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
