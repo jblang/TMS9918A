@@ -28,7 +28,7 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 | U5, U6, U7 | 74HCT574 octal flip-flops |
 | U8 | AS6C62256-55PCN, HM62256BLP-7, UM61M256K-15, or other compatible 32KB SRAM.  I have put two footprints so either a wide or narrow DIP-28 will work as long as the pin-out is the same. |
 | R1 | 75 ohm resistor |
-| R2 | 0 ohm resistor. Wire jumper can be used in place of 0 ohm resistor. |
+| R2 | 130 ohm resistor* |
 | R3 | 470 ohm resistor |
 | L1 | Ferrite bead (FBA04HA600VB-00 or similar) |
 | Y1 | 10.73866MHz crystal (LFXTAL029962REEL or similar) |
@@ -44,6 +44,8 @@ Refer to the [schematic](TMS9918.pdf), the picture below, and the bill of materi
 | JP2 | 1x3 pin straight header and 1 jumper block |
 | JP4 | 1x3 pin straight header and 1 jumper block |
 | D1 | REV4 only: Schottky diode (BAT81 or similar) |
+
+\* R2 controls the voltage of the NTSC signal, and therefore the brightness of the picture. Tom Lemense's original circuit specified a 0 ohm resistor (i.e., wire link), but based on my measurements this will result in a voltage higher than NTSC spec. 130 ohm yields a voltage close to NTSC spec.  Higher values will be dimmer and lower values will be brighter.
 
 Aside from the board and the TMS9918A itself, all parts are available from Mouser and probably other suppliers as well.
 
