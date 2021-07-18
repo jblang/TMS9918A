@@ -1,10 +1,23 @@
 ; Plasma Effect for TMS9918A and Z80 by J.B. Langston
 ; 
-; Color Palettes and Sine Routines ported from Plascii Petsma by Cruzer/Camelot
+; Color Palettes and Sine Table ported from Plascii Petsma by Cruzer/Camelot
 ; https://csdb.dk/release/?id=159933
 ;
-; Gradient Patterns ripped from Produkthandler Kom Her by Cruzer/Camelot
-; https://csdb.dk/release/?id=760
+; ===============================================================================================
+; Plascii Petsma by Cruzer/Camelot has one of the nicest looking plasma effects I've seen for
+; the C64. Since he included the source code, I was able to port it to the Z80 and TMS9918.   
+
+; I have added the following interactive features of my own:
+; - change the palette independent of the effect
+; - hold a particular effect on screen indefinitely
+; - switch immediately to a new effect
+; - runtime generation of random effects
+; - adjust parameters to customize an effect
+
+; Before getting into a specific implementation, it helps to understand how plasma effects work
+; in general. Rather than write another explanation when others have already done it well, I'll
+; refer you to  this one, which covers the basic concepts using C code:
+; https://lodev.org/cgtutor/plasma.html
 
 NumSinePnts:    equ 8
 ScreenWidth:    equ 32
@@ -401,7 +414,42 @@ ShowParameterLoop:
         djnz    ShowParameterLoop
         ret
 
-; pre-calculated sine table from python script:
+; MakeSineTable builds the sine table for a complete period from a precalculated quarter period.
+; The first 64 values are copied verbatim from the precomputed values. The next 64 values are
+; flipped horizontally by copying them in reverse order. The last 128 values are flipped 
+; vertically by complementing them. The vertically flipped values are written twice, first in
+; forward order, and then in reverse order to flip them horizontally and complete the period.
+; The resulting lookup table is 256 bytes long and stored on a 256-byte boundary so that a sine
+; value can be looked up by loading a single register with the input value.
+
+MakeSineTable:
+        ld      bc, SineSrc             ; source values
+        ld      de, SineTable           ; start of 1st quarter
+        ld      hl, SineTable+$7f       ; end of 2nd quarter
+        exx
+        ld      b, $40                  ; counter
+        ld      de, SineTable+$80       ; start of 3rd quarter
+        ld      hl, SineTable+$ff       ; end of 4th quarter
+SineLoop:
+        exx
+        ld      a, (bc)                 ; load source value
+        inc     bc
+        ld      (de), a                 ; store 1st quarter
+        inc     de
+        ld      (hl), a                 ; store 2nd quarter
+        dec     hl                      ; in reverse order
+        exx
+        cpl                             ; flip vertically
+        ld      (de), a                 ; store 3rd quarter
+        inc     de
+        ld      (hl), a                 ; store 4th quarter
+        dec     hl                      ; in reverse order
+        djnz    SineLoop
+        ret
+
+; Sine table contains pre-computed sine values converted to 8-bit integers.  
+; Real sine values from -1 to 1 correspond to unsigned integers from 0 to 255.
+; The first quarter of the period is pre-computed using python script:
 
 ; #!/usr/bin/python3
 ; import math
@@ -422,33 +470,7 @@ SineSrc:
         defb    $f6,$f7,$f8,$f9,$fa,$fb,$fc,$fc
         defb    $fd,$fe,$fe,$ff,$ff,$ff,$ff,$ff
 
-; mirror and complement sine values above to produce full period
-MakeSineTable:
-        ld      bc, SineSrc
-        ld      de, SineTable
-        ld      hl, SineTable+$7f
-        exx
-        ld      b, $40
-        ld      de, SineTable+$80
-        ld      hl, SineTable+$ff
-SineLoop:
-        exx
-        ld      a, (bc)
-        ld      (de), a
-        ld      (hl), a
-        inc     bc
-        inc     de
-        dec     hl
-        exx
-        cpl
-        ld      (de), a
-        ld      (hl), a
-        inc     de
-        dec     hl
-        djnz    SineLoop
-        ret
-
-; load as many copies of the patterns as will fit in the pattern table
+; LoadPatternTable loads 8 copies of the 32 tiles into the TMS9918 pattern table.
 LoadPatternTable:
         ld      de, (TmsPatternAddr)
         call    TmsWriteAddr
@@ -467,7 +489,51 @@ PatternLoop:
         djnz    PatternRepeatLoop
         ret
 
-; set random seed from four bytes in screen buffer data offset by refresh register
+; The TMS9918 tile mode defines 256 tile patterns, each of which is associated with a specific
+; foreground and background color. For palettes of 8 colors each, we can use 32 tiles per color,
+; so we only use every other tile the set of 64 tiles used in Produkthandler Kom Her on the C64. 
+; https://csdb.dk/release/?id=760
+
+Patterns:
+        defb    $00,$00,$00,$00,$00,$00,$00,$00
+        defb    $00,$00,$10,$00,$40,$00,$04,$00
+        defb    $00,$02,$10,$00,$40,$00,$04,$20
+        defb    $40,$02,$10,$02,$40,$00,$04,$20
+        defb    $40,$02,$10,$02,$40,$08,$05,$20
+        defb    $40,$02,$10,$0a,$40,$88,$05,$20
+        defb    $44,$02,$10,$0a,$41,$88,$05,$20
+        defb    $44,$02,$50,$0a,$41,$a8,$05,$20
+        defb    $44,$8a,$50,$0a,$41,$a8,$05,$20
+        defb    $44,$8a,$50,$0a,$51,$aa,$05,$20
+        defb    $54,$8a,$50,$0a,$51,$aa,$45,$20
+        defb    $54,$8a,$51,$0a,$51,$aa,$45,$28
+        defb    $55,$8a,$51,$2a,$51,$aa,$45,$28
+        defb    $55,$8a,$51,$2a,$55,$aa,$45,$2a
+        defb    $55,$8a,$55,$2a,$55,$aa,$45,$aa
+        defb    $55,$8a,$55,$aa,$55,$aa,$55,$aa
+        defb    $55,$aa,$55,$aa,$55,$aa,$55,$aa
+        defb    $55,$ba,$55,$aa,$55,$aa,$75,$aa
+        defb    $d5,$ba,$55,$aa,$d5,$aa,$75,$aa
+        defb    $d7,$ba,$55,$aa,$d5,$ae,$75,$aa
+        defb    $d7,$ba,$55,$ae,$d5,$ae,$75,$ab
+        defb    $df,$ba,$55,$ae,$f5,$ae,$75,$ab
+        defb    $df,$ba,$55,$ae,$f5,$af,$75,$bb
+        defb    $df,$fa,$55,$be,$f5,$af,$75,$bb
+        defb    $df,$fa,$57,$be,$f5,$af,$f5,$bb
+        defb    $df,$fa,$77,$be,$f5,$af,$fd,$bb
+        defb    $df,$fa,$77,$bf,$f5,$ef,$fd,$bb
+        defb    $df,$fa,$77,$bf,$fd,$ef,$fd,$bf
+        defb    $df,$fb,$f7,$bf,$fd,$ef,$fd,$bf
+        defb    $df,$fb,$ff,$bf,$fd,$ef,$fd,$ff
+        defb    $ff,$fb,$ff,$bf,$ff,$ef,$fd,$ff
+        defb    $ff,$fb,$ff,$ff,$ff,$ef,$ff,$ff
+PatternLen:     equ $ - Patterns
+NumPatterns:    equ PatternLen / 8
+PatternRepeats: equ 256 / NumPatterns
+ColorRepeats:   equ NumPatterns / 8
+PaletteLen:     equ 32 / ColorRepeats
+
+; RandomSeed sets the seed from four bytes in screen buffer data offset by refresh register.
 RandomSeed:
         ld      hl, ScreenBuffer
         ld      a, r
@@ -485,13 +551,8 @@ RandomSeedLoop:
         djnz    RandomSeedLoop
         ret
 
+; RandomNumber generates a random number using combined LFSR/LCG PRNG with 16-bit seeds
 ; https://wikiti.brandonw.net/index.php?title=Z80_Routines:Math:Random
-; combined LFSR/LCG PRNG, 16-bit seeds
-Seed1:
-        defw    0
-Seed2:
-        defw    0
-
 RandomNumber:
         ld      hl, (Seed1)
         ld      b, h
@@ -511,7 +572,12 @@ RandomNumber:
         add     hl, bc
         ret
 
-; generate series of random numbers
+Seed1:
+        defw    0
+Seed2:
+        defw    0
+
+; RandomSeries generates series of random numbers
 ; b = number of random numbers to generate
 ; c = mask for random numbers
 ; d = offset for random numbers
@@ -540,7 +606,7 @@ RandomNeg:
         inc     a
         ret
 
-; generate complete set of random parameters
+; RandomParameters generates a complete set of random parameters
 RandomParameters:
         ld      d, 0
         ld      c, 7                    ; -8 to 7
@@ -624,216 +690,7 @@ InitEffect:
         call    LoadColorTable
         ret
 
-; change color palette
-NextPalette:
-        ld      hl, (ColorPalette)
-        ld      de, PaletteLen
-        add     hl, de
-        ld      (ColorPalette), hl
-        ld      de, LastPalette
-        or      a
-        sbc     hl, de
-        jp      c, LoadColorTable
-        ld      hl, ColorPalettes
-        ld      (ColorPalette), hl
-        ; fallthrough
-
-; set up color table using current palette
-LoadColorTable:
-        ld      de, (TmsColorAddr)
-        call    TmsWriteAddr
-        ld      hl, (ColorPalette)
-        ld      c, (hl)
-        ld      d, c
-        ld      e, PaletteLen-1
-AddColorLoop:
-        inc     hl
-        ld      a, (hl)
-        call    AddColors
-        ld      c, (hl)
-        dec     e
-        jp      nz, AddColorLoop
-        ld      a, d
-        ; fallthrough
-AddColors:
-        add     a, a
-        add     a, a
-        add     a, a
-        add     a, a
-        or      c
-        ld      b, ColorRepeats
-ColorRepeatLoop:
-        call    TmsRamOut
-        djnz    ColorRepeatLoop
-        ret
-
-; calculate starting values for each tile
-SinePntsX:
-        defs    NumSinePnts
-SinePntsY:
-        defs    NumSinePnts
-
-CalcPlasmaStarts:
-        ld      hl, SineStartsY
-        ld      de, SinePntsY
-        ld      bc, NumSinePnts
-        ldir
-        ld      hl, PlasmaStarts
-        ld      c, ScreenHeight
-YLoop:
-        exx
-        ld      bc, SinePntsY
-        ld      hl, SineAddsY
-        ld      de, SinePntsX
-        exx
-        ld      d, NumSinePnts
-SinePntsYLoop:
-        exx
-        ld      a, (bc)
-        add     a, (hl)
-        ld      (bc), a
-        ld      (de), a
-        inc     bc
-        inc     de
-        inc     hl
-        exx
-        dec     d
-        jp      nz, SinePntsYLoop
-        ld      b, ScreenWidth
-XLoop:
-        exx
-        ld      de, SinePntsX
-        ld      hl, SineAddsX
-        ld      b, NumSinePnts
-SinePntsXLoop:
-        ld      a, (de)
-        add     a, (hl)
-        ld      (de), a
-        inc     de
-        inc     hl
-        djnz    SinePntsXLoop
-
-        ld      h, SineTable >> 8
-        ld      de, SinePntsX
-        ld      b, NumSinePnts
-        xor     a
-SineAddLoop:
-        ex      af, af'
-        ld      a, (de)
-        ld      l, a
-        ex      af, af'
-        add     a, (hl)
-        inc     de
-        djnz    SineAddLoop
-        exx
-        ld      (hl), a
-        inc     hl
-        djnz    XLoop
-        dec     c
-        jp      nz, YLoop
-UpdateScreen:
-        ld      hl, PlasmaStarts
-        ld      de, ScreenBuffer
-        ld      bc, ScreenSize
-        ldir
-        ret
-
-; calculate new plasma frame from starting point and current counts
-PlasmaCnts:
-        defw    0
-CycleCnt:
-        defb    0
-
-CalcPlasmaFrame:
-        ld      bc, PlasmaCnts
-        ld      de, (SineSpeeds)        
-        ld      a, (bc)                 
-        ld      h, a                    
-        add     a, e                    
-        ld      (bc), a
-        inc     bc
-        ld      a, (bc)
-        ld      l, a
-        add     a, d
-        ld      (bc), a                   
-        ld      d, SineTable >> 8
-        ld      e, h                    
-        ld      h, d                    
-        ld      bc, (PlasmaFreqs)       
-        exx
-        ld      de, CycleCnt
-        ld      a, (de)
-        ld      c, a
-        ld      hl, CycleSpeed
-        add     a, (hl)
-        ld      (de), a                 
-        ld      hl, PlasmaStarts
-        ld      de, ScreenBuffer
-        jp      SpeedCode
-
-; setup for speedcode:
-;       de  = pointer to first sine table entry
-;       hl  = pointer to second sine table entry
-;       c   = amount to increment first sine pointer between lines
-;       b   = amount to increment second sine pointer between lines
-;       c'  = current cycle count
-;       b'  = offset to add to starting value for current row
-;       hl' = pointer to starting plasma values
-;       de' = pointer to screen back buffer
-;       a   = temporary calculations
-
-RowSrc:
-        exx
-        ld      a, e
-        add     a, c
-        ld      e, a
-        ld      a, l
-        add     a, b
-        ld      l, a
-        ld      a, (de)
-        add     a, (hl)
-        rra
-        exx
-        adc     a, c
-        ld      b, a
-RowSrcLen:     equ $ - RowSrc
-
-ColSrc:
-        ld      a, (hl)
-        add     a, b
-        ld      (de), a
-        inc     hl
-        inc     de
-ColSrcLen:      equ $ - ColSrc
-
-; build unrolled loops for speed
-MakeSpeedCode:
-        ld      de, SpeedCode
-        ld      a, ScreenHeight
-RowLoop:
-        ld      hl, RowSrc
-        ld      bc, RowSrcLen
-        ldir
-        ex      af, af'
-        ld      a, ScreenWidth
-ColLoop:
-        ld      hl, ColSrc
-        ld      bc, ColSrcLen
-        ldir
-        dec     a
-        jp      nz, ColLoop
-        ex      af, af'
-        dec     a
-        jp      nz, RowLoop
-        ld      a, (RetSrc)
-        ld      (de), a
-RetSrc:
-        ret
-
-OldSP:
-        defw    0                
-
-; Parameters for current effect
+; PlasmaParams holds parameters for the current effect
 PlasmaParams:
 SineAddsX:
         defs    NumSinePnts
@@ -851,7 +708,7 @@ ColorPalette:
         defw    0
 PlasmaParamLen: equ $ - PlasmaParams
 
-; pre-defined plasma parameters
+; PlasmaParamList contains pre-defined plasma parameters
 PlasmaParamList:
         defb    $fa,$05,$03,$fa,$07,$04,$fe,$fe
         defb    $fe,$01,$fe,$02,$03,$ff,$02,$02
@@ -950,300 +807,57 @@ PlasmaParamList:
         defw    Pal0b
 LastPlasmaParam:
 
-; gradient patterns
-Patterns:
-        defb    00000000b
-        defb    00000000b
-        defb    00000000b
-        defb    00000000b
-        defb    00000000b
-        defb    00000000b
-        defb    00000000b
-        defb    00000000b
+; NextPalette changes to the next color palette
+NextPalette:
+        ld      hl, (ColorPalette)
+        ld      de, PaletteLen
+        add     hl, de
+        ld      (ColorPalette), hl
+        ld      de, LastPalette
+        or      a
+        sbc     hl, de
+        jp      c, LoadColorTable
+        ld      hl, ColorPalettes
+        ld      (ColorPalette), hl
+        ; fallthrough
 
-        defb    00000000b
-        defb    00000000b
-        defb    00010000b
-        defb    00000000b
-        defb    01000000b
-        defb    00000000b
-        defb    00000100b
-        defb    00000000b
-
-        defb    00000000b
-        defb    00000010b
-        defb    00010000b
-        defb    00000000b
-        defb    01000000b
-        defb    00000000b
-        defb    00000100b
-        defb    00100000b
-
-        defb    01000000b
-        defb    00000010b
-        defb    00010000b
-        defb    00000010b
-        defb    01000000b
-        defb    00000000b
-        defb    00000100b
-        defb    00100000b
-
-        defb    01000000b
-        defb    00000010b
-        defb    00010000b
-        defb    00000010b
-        defb    01000000b
-        defb    00001000b
-        defb    00000101b
-        defb    00100000b
-
-        defb    01000000b
-        defb    00000010b
-        defb    00010000b
-        defb    00001010b
-        defb    01000000b
-        defb    10001000b
-        defb    00000101b
-        defb    00100000b
-
-        defb    01000100b
-        defb    00000010b
-        defb    00010000b
-        defb    00001010b
-        defb    01000001b
-        defb    10001000b
-        defb    00000101b
-        defb    00100000b
-
-        defb    01000100b
-        defb    00000010b
-        defb    01010000b
-        defb    00001010b
-        defb    01000001b
-        defb    10101000b
-        defb    00000101b
-        defb    00100000b
-
-        defb    01000100b
-        defb    10001010b
-        defb    01010000b
-        defb    00001010b
-        defb    01000001b
-        defb    10101000b
-        defb    00000101b
-        defb    00100000b
-
-        defb    01000100b
-        defb    10001010b
-        defb    01010000b
-        defb    00001010b
-        defb    01010001b
-        defb    10101010b
-        defb    00000101b
-        defb    00100000b
-
-        defb    01010100b
-        defb    10001010b
-        defb    01010000b
-        defb    00001010b
-        defb    01010001b
-        defb    10101010b
-        defb    01000101b
-        defb    00100000b
-
-        defb    01010100b
-        defb    10001010b
-        defb    01010001b
-        defb    00001010b
-        defb    01010001b
-        defb    10101010b
-        defb    01000101b
-        defb    00101000b
-
-        defb    01010101b
-        defb    10001010b
-        defb    01010001b
-        defb    00101010b
-        defb    01010001b
-        defb    10101010b
-        defb    01000101b
-        defb    00101000b
-
-        defb    01010101b
-        defb    10001010b
-        defb    01010001b
-        defb    00101010b
-        defb    01010101b
-        defb    10101010b
-        defb    01000101b
-        defb    00101010b
-
-        defb    01010101b
-        defb    10001010b
-        defb    01010101b
-        defb    00101010b
-        defb    01010101b
-        defb    10101010b
-        defb    01000101b
-        defb    10101010b
-
-        defb    01010101b
-        defb    10001010b
-        defb    01010101b
-        defb    10101010b
-        defb    01010101b
-        defb    10101010b
-        defb    01010101b
-        defb    10101010b
-
-        defb    01010101b
-        defb    10101010b
-        defb    01010101b
-        defb    10101010b
-        defb    01010101b
-        defb    10101010b
-        defb    01010101b
-        defb    10101010b
-
-        defb    01010101b
-        defb    10111010b
-        defb    01010101b
-        defb    10101010b
-        defb    01010101b
-        defb    10101010b
-        defb    01110101b
-        defb    10101010b
-
-        defb    11010101b
-        defb    10111010b
-        defb    01010101b
-        defb    10101010b
-        defb    11010101b
-        defb    10101010b
-        defb    01110101b
-        defb    10101010b
-
-        defb    11010111b
-        defb    10111010b
-        defb    01010101b
-        defb    10101010b
-        defb    11010101b
-        defb    10101110b
-        defb    01110101b
-        defb    10101010b
-
-        defb    11010111b
-        defb    10111010b
-        defb    01010101b
-        defb    10101110b
-        defb    11010101b
-        defb    10101110b
-        defb    01110101b
-        defb    10101011b
-
-        defb    11011111b
-        defb    10111010b
-        defb    01010101b
-        defb    10101110b
-        defb    11110101b
-        defb    10101110b
-        defb    01110101b
-        defb    10101011b
-
-        defb    11011111b
-        defb    10111010b
-        defb    01010101b
-        defb    10101110b
-        defb    11110101b
-        defb    10101111b
-        defb    01110101b
-        defb    10111011b
-
-        defb    11011111b
-        defb    11111010b
-        defb    01010101b
-        defb    10111110b
-        defb    11110101b
-        defb    10101111b
-        defb    01110101b
-        defb    10111011b
-
-        defb    11011111b
-        defb    11111010b
-        defb    01010111b
-        defb    10111110b
-        defb    11110101b
-        defb    10101111b
-        defb    11110101b
-        defb    10111011b
-
-        defb    11011111b
-        defb    11111010b
-        defb    01110111b
-        defb    10111110b
-        defb    11110101b
-        defb    10101111b
-        defb    11111101b
-        defb    10111011b
-
-        defb    11011111b
-        defb    11111010b
-        defb    01110111b
-        defb    10111111b
-        defb    11110101b
-        defb    11101111b
-        defb    11111101b
-        defb    10111011b
-
-        defb    11011111b
-        defb    11111010b
-        defb    01110111b
-        defb    10111111b
-        defb    11111101b
-        defb    11101111b
-        defb    11111101b
-        defb    10111111b
-
-        defb    11011111b
-        defb    11111011b
-        defb    11110111b
-        defb    10111111b
-        defb    11111101b
-        defb    11101111b
-        defb    11111101b
-        defb    10111111b
-
-        defb    11011111b
-        defb    11111011b
-        defb    11111111b
-        defb    10111111b
-        defb    11111101b
-        defb    11101111b
-        defb    11111101b
-        defb    11111111b
-
-        defb    11111111b
-        defb    11111011b
-        defb    11111111b
-        defb    10111111b
-        defb    11111111b
-        defb    11101111b
-        defb    11111101b
-        defb    11111111b
-
-        defb    11111111b
-        defb    11111011b
-        defb    11111111b
-        defb    11111111b
-        defb    11111111b
-        defb    11101111b
-        defb    11111111b
-        defb    11111111b
-PatternLen:     equ $ - Patterns
-NumPatterns:    equ PatternLen / 8
-PatternRepeats: equ 256 / NumPatterns
-ColorRepeats:   equ NumPatterns / 8
-PaletteLen:     equ 32 / ColorRepeats
+; LoadColorTable sets up color table using current palette
+;
+; The color table in Graphics I mode consists of 32 bytes. Each byte defines two colors 
+; for 8 consecutive patterns in the pattern table.  The upper nybble defines the color
+; of the 1 bits and the lower nybble defines the color of the 0 bits. 
+;
+; For simplicity, palettes are stored with one color per byte, and the LoadColorTable 
+; routine combines each adjacent color into a single byte for the color table. Since 
+; we are using 8 colors and 32 tiles per color combination, we need to load each color
+; combination into the color table 4 times.
+LoadColorTable:
+        ld      de, (TmsColorAddr)
+        call    TmsWriteAddr
+        ld      hl, (ColorPalette)
+        ld      c, (hl)
+        ld      d, c
+        ld      e, PaletteLen-1
+AddColorLoop:
+        inc     hl
+        ld      a, (hl)
+        call    AddColors
+        ld      c, (hl)
+        dec     e
+        jp      nz, AddColorLoop
+        ld      a, d
+        ; fallthrough
+AddColors:
+        add     a, a
+        add     a, a
+        add     a, a
+        add     a, a
+        or      c
+        ld      b, ColorRepeats
+ColorRepeatLoop:
+        call    TmsRamOut
+        djnz    ColorRepeatLoop
+        ret
 
 ; VIC-II to TMS9918 color mappings
 ; compromises with no direct mapping are marked with #
@@ -1269,6 +883,185 @@ Pal0d:  defb    $08,$09,$0b,$03,$07,$05,$04,$0d
 Pal0e:  defb    $01,$0c,$02,$03,$0f,$09,$08,$06
 Pal0f:  defb    $01,$04,$05,$07,$0f,$0b,$0a,$0d
 LastPalette:
+
+; CalcPlasmaStarts calculates the initial value for each tile by summing together 8 sine waves of
+; varying frequencies which combine to create the contours of a still image. Each sine wave is
+; defined by a StartAngle, RowFreq and ColFreq which are applied to each X, Y coordinate as:
+; StillFrame(x,y) = sum[n=1..8]: sin(StartAngle[n] + ColFreq[n] * x + RowFreq[n] * y)
+
+; The calculation of the input angle for each X and Y coordinate is accomplished by successive
+; additions of the RowFreq and ColFreq values for to the respective RowAngle and ColAngle
+; accumulators.
+CalcPlasmaStarts:
+        ld      hl, SineStartsY         ; for each of 8 sine waves,
+        ld      de, SinePntsY           ; initialize SinePntsY to SineStartsY
+        ld      bc, NumSinePnts
+        ldir
+        ld      hl, PlasmaStarts
+        ld      c, ScreenHeight         ; for each row...
+YLoop:
+        exx
+        ld      bc, SinePntsY
+        ld      hl, SineAddsY
+        ld      de, SinePntsX
+        exx
+        ld      d, NumSinePnts
+SinePntsYLoop:
+        exx                             ; for each sine wave...
+        ld      a, (bc)
+        add     a, (hl)                 ; add SineAddsY to SinePntsY
+        ld      (bc), a
+        ld      (de), a                 ; initialize SinePntsX to SinePntsY
+        inc     bc
+        inc     de
+        inc     hl
+        exx
+        dec     d
+        jp      nz, SinePntsYLoop       ; ... next sine wave
+        ld      b, ScreenWidth          ; for each column...
+XLoop:
+        exx
+        ld      de, SinePntsX
+        ld      hl, SineAddsX
+        ld      b, NumSinePnts          ; for each sine wave...
+SinePntsXLoop:
+        ld      a, (de)
+        add     a, (hl)                 ; add SineAddsX to SinePntsX
+        ld      (de), a
+        inc     de
+        inc     hl
+        djnz    SinePntsXLoop           ; ... next sine wave
+
+        ld      h, SineTable >> 8
+        ld      de, SinePntsX
+        xor     a                       ; initialize to zero
+        ld      b, NumSinePnts          ; for each sine wave...
+SineAddLoop:
+        ex      af, af'
+        ld      a, (de)                 ; look up SinePntsX in SineTable
+        ld      l, a
+        ex      af, af'
+        add     a, (hl)                 ; accumulate values from SineTable
+        inc     de
+        djnz    SineAddLoop             ; ...next sine wave
+        exx
+        ld      (hl), a                 ; save accumulated value in PlasmaStarts
+        inc     hl
+        djnz    XLoop                   ; ... next column
+        dec     c
+        jp      nz, YLoop               ; ... next row
+UpdateScreen:
+        ld      hl, PlasmaStarts        ; transfer PlasmaStarts to screen buffer
+        ld      de, ScreenBuffer
+        ld      bc, ScreenSize
+        ldir
+        ret
+
+SinePntsX:
+        defs    NumSinePnts
+SinePntsY:
+        defs    NumSinePnts
+
+; CalcPlasmaFrame applies distortion and color cycling effects to the original image StillFrame.  
+;
+; For each frame, tiles are shifted based on LinearSpeed and two SineSpeeds.  In addition, each 
+; row is warped by sine waves defined by two RowWarp parameters. For each row y of frame f, the
+; total offset applied to each tile of StillFrame is calcualted according to this formula:
+; D(f,y) = LinearSpeed * f + (sum [n=0..1]: sin(SineSpeed[n] * f + RowWarp[n] * y)) / 2
+CalcPlasmaFrame:
+        ld      bc, PlasmaCnts
+        ld      de, (SineSpeeds)        
+        ld      a, (bc)                 
+        ld      h, a                    
+        add     a, e                    
+        ld      (bc), a
+        inc     bc
+        ld      a, (bc)
+        ld      l, a
+        add     a, d
+        ld      (bc), a                   
+        ld      d, SineTable >> 8
+        ld      e, h                    
+        ld      h, d                    
+        ld      bc, (PlasmaFreqs)       
+        exx
+        ld      de, CycleCnt
+        ld      a, (de)
+        ld      c, a
+        ld      hl, CycleSpeed
+        add     a, (hl)
+        ld      (de), a                 
+        ld      hl, PlasmaStarts
+        ld      de, ScreenBuffer
+        jp      SpeedCode
+
+; calculate new plasma frame from starting point and current counts
+PlasmaCnts:
+        defw    0
+CycleCnt:
+        defb    0
+
+; setup for speedcode:
+;       de  = pointer to first sine table entry
+;       hl  = pointer to second sine table entry
+;       c   = amount to increment first sine pointer between lines
+;       b   = amount to increment second sine pointer between lines
+;       c'  = current cycle count
+;       b'  = offset to add to starting value for current row
+;       hl' = pointer to starting plasma values
+;       de' = pointer to screen back buffer
+;       a   = temporary calculations
+
+RowSrc:
+        exx
+        ld      a, e
+        add     a, c
+        ld      e, a
+        ld      a, l
+        add     a, b
+        ld      l, a
+        ld      a, (de)
+        add     a, (hl)
+        rra
+        exx
+        adc     a, c
+        ld      b, a
+RowSrcLen:     equ $ - RowSrc
+
+ColSrc:
+        ld      a, (hl)
+        add     a, b
+        ld      (de), a
+        inc     hl
+        inc     de
+ColSrcLen:      equ $ - ColSrc
+
+; build unrolled loops for speed
+MakeSpeedCode:
+        ld      de, SpeedCode
+        ld      a, ScreenHeight
+RowLoop:
+        ld      hl, RowSrc
+        ld      bc, RowSrcLen
+        ldir
+        ex      af, af'
+        ld      a, ScreenWidth
+ColLoop:
+        ld      hl, ColSrc
+        ld      bc, ColSrcLen
+        ldir
+        dec     a
+        jp      nz, ColLoop
+        ex      af, af'
+        dec     a
+        jp      nz, RowLoop
+        ld      a, (RetSrc)
+        ld      (de), a
+RetSrc:
+        ret
+
+OldSP:
+        defw    0                
 
         include "tms.asm"
         include "z180.asm"
